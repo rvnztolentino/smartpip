@@ -18,4 +18,15 @@ enum Layout {
 
     /// Duration of an animated corner move.
     static let cornerAnimationDuration: TimeInterval = 0.25
+
+    /// Opacity while the cursor sits over a locked player, so you can read whatever is
+    /// underneath without moving the window. Locking on its own does not dim.
+    static let hoveredWindowAlpha: CGFloat = 0.3
+
+    /// Extra margin the cursor must clear before a faded player comes back. Stops the
+    /// fade flickering when the pointer rests on the window's edge.
+    static let hoverHysteresis: CGFloat = 6
+
+    /// Duration of the fade in and out.
+    static let opacityFadeDuration: TimeInterval = 0.15
 }
