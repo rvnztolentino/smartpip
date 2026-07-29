@@ -20,6 +20,33 @@ extension HotKey {
         modifiers: UInt32(controlKey | optionKey | cmdKey),
         displayName: "⌃⌥⌘C"
     )
+
+    /// The primary control in lock mode: with the window click-through, this is the
+    /// only way back that does not depend on the pointer.
+    static let toggleLock = HotKey(
+        identifier: 2,
+        keyCode: UInt32(kVK_ANSI_L),
+        modifiers: UInt32(controlKey | optionKey | cmdKey),
+        displayName: "⌃⌥⌘L"
+    )
+
+    static let toggleAvoid = HotKey(
+        identifier: 3,
+        keyCode: UInt32(kVK_ANSI_A),
+        modifiers: UInt32(controlKey | optionKey | cmdKey),
+        displayName: "⌃⌥⌘A"
+    )
+
+    /// Menu title with the shortcut appended.
+    ///
+    /// Menu items backed by a hot key deliberately carry no `keyEquivalent`. The
+    /// Carbon hot key consumes the combination before the menu system sees it, and
+    /// binding it in both places risks the action running twice — which for a toggle
+    /// would look like nothing happening at all. Putting the shortcut in the title
+    /// keeps it discoverable without that risk.
+    func menuTitle(_ base: String) -> String {
+        "\(base)  \(displayName)"
+    }
 }
 
 /// Registers system-wide shortcuts using Carbon's `RegisterEventHotKey`.

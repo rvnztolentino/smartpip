@@ -68,13 +68,30 @@ enum MainMenuBuilder {
     private static func playerMenuItem() -> NSMenuItem {
         let menu = NSMenu(title: "Player")
 
-        let cycle = menu.addItem(
-            withTitle: "Cycle Corner",
-            action: #selector(AppDelegate.cycleCorner(_:)),
-            keyEquivalent: "")
-        cycle.toolTip = "Move the player to the next corner (\(HotKey.cycleCorner.displayName) anywhere)"
+        menu.addItem(
+            withTitle: "Play/Pause",
+            action: #selector(AppDelegate.togglePlayPause(_:)),
+            keyEquivalent: " ")
 
         menu.addItem(.separator())
+
+        // Checkmarks are set per state in AppDelegate.validateMenuItem(_:).
+        menu.addItem(
+            withTitle: HotKey.toggleAvoid.menuTitle("Avoid Cursor"),
+            action: #selector(AppDelegate.toggleAvoidMode(_:)),
+            keyEquivalent: "")
+
+        menu.addItem(
+            withTitle: HotKey.toggleLock.menuTitle("Lock Player"),
+            action: #selector(AppDelegate.toggleLockMode(_:)),
+            keyEquivalent: "")
+
+        menu.addItem(.separator())
+
+        menu.addItem(
+            withTitle: HotKey.cycleCorner.menuTitle("Cycle Corner"),
+            action: #selector(AppDelegate.cycleCorner(_:)),
+            keyEquivalent: "")
 
         menu.addItem(
             withTitle: "Animate Corner Moves",

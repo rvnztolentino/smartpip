@@ -15,10 +15,33 @@ final class PlaybackController {
 
     init() {
         playerView = AVPlayerView()
-        playerView.controlsStyle = .floating
         playerView.videoGravity = .resizeAspect
         playerView.showsFullScreenToggleButton = false
         playerView.updatesNowPlayingInfoCenter = false
+        setControlsVisible(PlayerModes.default.showsTransportControls)
+    }
+
+    /// `.none` removes the transport controls outright, so nothing fades in when the
+    /// pointer crosses the window. Play/pause stays reachable from the menus.
+    func setControlsVisible(_ visible: Bool) {
+        playerView.controlsStyle = visible ? .floating : .none
+    }
+
+    var isPlaying: Bool {
+        playerView.player?.timeControlStatus == .playing
+    }
+
+    var hasVideo: Bool {
+        playerView.player?.currentItem != nil
+    }
+
+    func togglePlayPause() {
+        guard let player = playerView.player, player.currentItem != nil else { return }
+        if isPlaying {
+            player.pause()
+        } else {
+            player.play()
+        }
     }
 
     /// Loads `url` and begins playback.

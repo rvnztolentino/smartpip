@@ -9,9 +9,15 @@ import QuartzCore
 @MainActor
 final class PlayerWindowController: NSWindowController {
     private(set) var corner: ScreenCorner = .bottomRight
+    private(set) var modes: PlayerModes = .default
+
+    /// Called after `modes` changes, so the menu bar item can follow along.
+    var onModesChange: ((PlayerModes) -> Void)?
 
     private let playback: PlaybackController
     private let contentView: PlayerContentView
+    private var cursorTracker: CursorTracker?
+    private var isCursorOverWindow = false
 
     init() {
         let playback = PlaybackController()
@@ -27,7 +33,12 @@ final class PlayerWindowController: NSWindowController {
         window.delegate = self
         contentView.delegate = self
 
+        cursorTracker = CursorTracker { [weak self] point in
+            self?.cursorMoved(to: point)
+        }
+
         applyPlacement(animated: false)
+        applyModes(animated: false)
 
         NotificationCenter.default.addObserver(
             self,
@@ -74,6 +85,87 @@ final class PlayerWindowController: NSWindowController {
             let videoSize = await playback.load(url)
             apply(contentSize: Self.contentSize(forVideo: videoSize), animated: false)
         }
+    }
+
+    // MARK: - Modes
+
+    func toggle(_ mode: PlayerModes) {
+        setModes(modes.symmetricDifference(mode))
+    }
+
+    func setModes(_ newModes: PlayerModes) {
+        guard newModes != modes else { return }
+        modes = newModes
+        applyModes(animated: true)
+        onModesChange?(newModes)
+    }
+
+    /// Locking does not dim on its own — the window only fades while the cursor is
+    /// actually over it. Unlocking does not steal focus either; clicking the window
+    /// does that.
+    private func applyModes(animated: Bool) {
+        guard let window else { return }
+
+        window.ignoresMouseEvents = modes.isClickThrough
+        playback.setControlsVisible(modes.showsTransportControls)
+
+        if modes.needsCursorTracking {
+            cursorTracker?.start()
+        } else {
+            cursorTracker?.stop()
+            isCursorOverWindow = false
+        }
+
+        applyOpacity(animated: animated)
+    }
+
+    // MARK: - Cursor proximity
+
+    /// Fade only applies to a locked player: that is when you cannot move the window
+    /// out of the way by hand, so seeing through it is the only option.
+    private var targetAlpha: CGFloat {
+        modes.isClickThrough && isCursorOverWindow ? Layout.hoveredWindowAlpha : 1
+    }
+
+    private func cursorMoved(to point: NSPoint) {
+        guard let window else { return }
+
+        // Asymmetric bounds: the cursor has to clear the frame by a small margin
+        // before the window comes back, so resting on an edge does not flicker.
+        let bounds = isCursorOverWindow
+            ? window.frame.insetBy(dx: -Layout.hoverHysteresis, dy: -Layout.hoverHysteresis)
+            : window.frame
+
+        let isOver = bounds.contains(point)
+        guard isOver != isCursorOverWindow else { return }
+        isCursorOverWindow = isOver
+        applyOpacity(animated: true)
+    }
+
+    private func applyOpacity(animated: Bool) {
+        guard let window else { return }
+        let alpha = targetAlpha
+        guard window.alphaValue != alpha else { return }
+
+        guard animated else {
+            window.alphaValue = alpha
+            return
+        }
+
+        NSAnimationContext.runAnimationGroup { context in
+            context.duration = Layout.opacityFadeDuration
+            window.animator().alphaValue = alpha
+        }
+    }
+
+    // MARK: - Playback
+
+    func togglePlayPause() {
+        playback.togglePlayPause()
+    }
+
+    var canTogglePlayPause: Bool {
+        playback.hasVideo
     }
 
     // MARK: - Placement
