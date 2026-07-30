@@ -18,7 +18,7 @@ final class PlaybackController {
         playerView.videoGravity = .resizeAspect
         playerView.showsFullScreenToggleButton = false
         playerView.updatesNowPlayingInfoCenter = false
-        setControlsVisible(PlayerModes.default.showsTransportControls)
+        setControlsVisible(PlayerMode.default.showsTransportControls)
     }
 
     /// `.none` removes the transport controls outright, so nothing fades in when the

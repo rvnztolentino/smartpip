@@ -11,6 +11,9 @@ enum ScreenCorner: String, CaseIterable {
     case bottomLeft
 
     /// The next corner clockwise.
+    ///
+    /// The one rotation in the app: the Cycle Corner shortcut and the avoidance
+    /// dodge both step through it, so the window only ever travels one way.
     var next: ScreenCorner {
         let all = ScreenCorner.allCases
         let index = all.firstIndex(of: self) ?? 0

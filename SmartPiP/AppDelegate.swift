@@ -14,8 +14,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
         let statusItem = StatusItemController(target: self)
         statusItemController = statusItem
-        controller.onModesChange = { [weak statusItem] modes in
-            statusItem?.update(modes: modes)
+        controller.onModeChange = { [weak statusItem] mode in
+            statusItem?.update(mode: mode)
         }
 
         controller.showWindow(nil)
@@ -88,15 +88,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
 extension AppDelegate: NSMenuItemValidation {
     func validateMenuItem(_ menuItem: NSMenuItem) -> Bool {
-        let modes = playerWindowController?.modes ?? .default
+        let mode = playerWindowController?.mode ?? .default
 
         switch menuItem.action {
         case #selector(toggleAnimatedCornerTransition(_:)):
             menuItem.state = Preferences.shared.animatesCornerTransition ? .on : .off
         case #selector(toggleAvoidMode(_:)):
-            menuItem.state = modes.contains(.avoid) ? .on : .off
+            menuItem.state = mode == .avoid ? .on : .off
         case #selector(toggleLockMode(_:)):
-            menuItem.state = modes.contains(.lock) ? .on : .off
+            menuItem.state = mode == .lock ? .on : .off
         case #selector(togglePlayPause(_:)):
             return playerWindowController?.canTogglePlayPause ?? false
         default:
