@@ -8,8 +8,16 @@ import QuartzCore
 /// end up somewhere that isn't a corner.
 @MainActor
 final class PlayerWindowController: NSWindowController {
-    private(set) var corner: ScreenCorner = .bottomRight
-    private(set) var mode: PlayerMode = .default
+    /// Written back to `Preferences` on every change rather than at quit, from a `didSet`
+    /// rather than by hand at each call site, so a new way to move the window cannot
+    /// forget to record where it went.
+    private(set) var corner: ScreenCorner {
+        didSet { Preferences.shared.corner = corner }
+    }
+
+    private(set) var mode: PlayerMode {
+        didSet { Preferences.shared.mode = mode }
+    }
 
     /// Called after `mode` changes, so the menu bar item can follow along.
     var onModeChange: ((PlayerMode) -> Void)?
@@ -19,13 +27,22 @@ final class PlayerWindowController: NSWindowController {
     private var cursorTracker: CursorTracker?
     private var isCursorOverWindow = false
     private var avoidance = AvoidanceTrigger()
+    private var dragReleaseWatch: Timer?
 
     init() {
-        let playback = PlaybackController()
-        let contentView = PlayerContentView(playerView: playback.playerView)
-        let window = PlayerWindow(
-            contentRect: NSRect(origin: .zero, size: Layout.defaultContentSize))
+        // Read the remembered state before anything is built: the mode decides whether
+        // the transport controls are there to begin with, which avoids a frame of
+        // controls appearing and then being taken away again.
+        let mode = Preferences.shared.mode
+        let contentSize = WindowSizing.blankContentSize(
+            remembering: Preferences.shared.contentSize)
 
+        let playback = PlaybackController(controlsVisible: mode.showsTransportControls)
+        let contentView = PlayerContentView(playerView: playback.playerView)
+        let window = PlayerWindow(contentRect: NSRect(origin: .zero, size: contentSize))
+
+        self.corner = Preferences.shared.corner
+        self.mode = mode
         self.playback = playback
         self.contentView = contentView
         super.init(window: window)
@@ -84,20 +101,21 @@ final class PlayerWindowController: NSWindowController {
         Task { [weak self] in
             guard let self else { return }
             let videoSize = await playback.load(url)
-            apply(contentSize: Self.contentSize(forVideo: videoSize), animated: false)
+            apply(
+                contentSize: WindowSizing.contentSize(
+                    forVideo: videoSize, currentLongestEdge: currentLongestContentEdge),
+                animated: false)
         }
     }
 
     // MARK: - Mode
 
-    /// Switches `mode` on, or off if it is already on.
+    /// Selects `newMode`. Selecting the mode already in effect does nothing.
     ///
-    /// Avoid and Lock are one choice, so asking for one switches the other off. Both
-    /// menu items go through here, which is what keeps at most one of them ticked.
-    func toggle(_ mode: PlayerMode) {
-        setMode(self.mode.toggled(mode))
-    }
-
+    /// The three modes are one choice with three options, so this is the only mode entry
+    /// point: every menu item and every shortcut selects a mode outright rather than
+    /// toggling one. Nothing can leave the player with no mode, and nothing can leave two
+    /// of them ticked.
     func setMode(_ newMode: PlayerMode) {
         guard newMode != mode else { return }
         mode = newMode
@@ -113,6 +131,17 @@ final class PlayerWindowController: NSWindowController {
 
         window.ignoresMouseEvents = mode.isClickThrough
         playback.setControlsVisible(mode.showsTransportControls)
+
+        // Dragging and resizing are only offered to a normal player. In the other two
+        // modes the window is meant to be out of the way, and a mode change mid-drag
+        // would otherwise leave a drag in progress on a window that no longer accepts it.
+        let manipulable = mode.acceptsDirectManipulation
+        window.isMovable = manipulable
+        window.isMovableByWindowBackground = manipulable
+        contentView.mode = mode
+        if !manipulable {
+            endDragReleaseWatch()
+        }
 
         if mode.needsCursorTracking {
             cursorTracker?.start()
@@ -132,6 +161,32 @@ final class PlayerWindowController: NSWindowController {
         if mode.avoidsCursor {
             updateAvoidance(for: NSEvent.mouseLocation)
         }
+    }
+
+    // MARK: - Reset
+
+    /// Puts the player back to how it starts on a fresh install: bottom right, avoiding the
+    /// cursor, at the default size, with corner moves animated again.
+    ///
+    /// Whatever is playing keeps playing. Everything reset here is a window setting, and
+    /// closing the video would make an undo of the window state also throw away the file
+    /// you had open, which is not what the menu item says it does.
+    func resetSettings() {
+        Preferences.shared.resetToDefaults()
+
+        if mode != .default {
+            mode = .default
+            applyMode(animated: true)
+            onModeChange?(mode)
+        }
+
+        // One animated move rather than a corner change followed by a resize: two
+        // animations on the same window at the same time fight over its frame.
+        corner = .default
+        holdAvoidanceDuringMove()
+        apply(
+            contentSize: WindowSizing.resetContentSize(shapedLike: currentContentSize),
+            animated: true)
     }
 
     // MARK: - Cursor proximity
@@ -221,20 +276,56 @@ final class PlayerWindowController: NSWindowController {
 
     func move(to corner: ScreenCorner) {
         self.corner = corner
-
-        // Every animated move — dodge or manual cycle — puts the window in flight
-        // across the screen, so hold avoidance off until it has landed.
-        if Preferences.shared.animatesCornerTransition {
-            avoidance.windowIsMoving(
-                until: Date().addingTimeInterval(Layout.cornerAnimationDuration))
-        }
-
+        holdAvoidanceDuringMove()
         applyPlacement(animated: true)
+    }
+
+    /// Every animated move — dodge, manual cycle or reset — puts the window in flight
+    /// across the screen, so hold avoidance off until it has landed.
+    private func holdAvoidanceDuringMove() {
+        guard Preferences.shared.animatesCornerTransition else { return }
+        avoidance.windowIsMoving(
+            until: Date().addingTimeInterval(Layout.cornerAnimationDuration))
     }
 
     private func applyPlacement(animated: Bool) {
         guard let window else { return }
         apply(frameSize: window.frame.size, animated: animated)
+    }
+
+    // MARK: - Dragging to a corner
+
+    /// Watches for the end of a window drag, then parks the window in the corner it was
+    /// dragged towards.
+    ///
+    /// AppKit has no "did end dragging" callback to pair with `windowDidMove`, and the
+    /// last move notification arrives while the button is still down, so the release has
+    /// to be noticed some other way. This polls the button state for the same reasons
+    /// `CursorTracker` polls the pointer: no permission prompt, and no event monitor to
+    /// be starved by the modal loop AppKit runs during the drag.
+    private func beginDragReleaseWatch() {
+        guard dragReleaseWatch == nil else { return }
+
+        let timer = Timer(timeInterval: 1.0 / 20.0, repeats: true) { [weak self] _ in
+            MainActor.assumeIsolated {
+                guard let self, NSEvent.pressedMouseButtons == 0 else { return }
+                self.endDragReleaseWatch()
+                self.snapToNearestCorner()
+            }
+        }
+        RunLoop.main.add(timer, forMode: .common)
+        dragReleaseWatch = timer
+    }
+
+    private func endDragReleaseWatch() {
+        dragReleaseWatch?.invalidate()
+        dragReleaseWatch = nil
+    }
+
+    private func snapToNearestCorner() {
+        guard let window, let visibleFrame = currentVisibleFrame() else { return }
+        let centre = NSPoint(x: window.frame.midX, y: window.frame.midY)
+        move(to: ScreenCorner.nearest(to: centre, in: visibleFrame))
     }
 
     private func apply(contentSize: NSSize, animated: Bool) {
@@ -246,8 +337,19 @@ final class PlayerWindowController: NSWindowController {
 
     private func apply(frameSize: NSSize, animated: Bool) {
         guard let window, let visibleFrame = currentVisibleFrame() else { return }
+
+        // Shrink to fit before parking rather than letting the corner clamp each edge
+        // separately: independent clamping squashes an oversized window into a different
+        // shape, which is exactly what the aspect lock exists to prevent.
+        let available = NSSize(
+            width: visibleFrame.width - Layout.cornerMargin * 2,
+            height: visibleFrame.height - Layout.cornerMargin * 2
+        )
+        let fitted = WindowSizing.fitted(frameSize, in: available)
+        applySizeConstraints(forFrameSize: fitted)
+
         let target = corner.frame(
-            for: frameSize, in: visibleFrame, margin: Layout.cornerMargin)
+            for: fitted, in: visibleFrame, margin: Layout.cornerMargin)
 
         guard animated, Preferences.shared.animatesCornerTransition else {
             window.setFrame(target, display: true)
@@ -263,33 +365,42 @@ final class PlayerWindowController: NSWindowController {
         }
     }
 
-    private func currentVisibleFrame() -> NSRect? {
-        (window?.screen ?? NSScreen.main)?.visibleFrame
+    /// Pins the window's shape to whatever it is being sized to, and records that size.
+    ///
+    /// `contentAspectRatio` is what makes a drag on any edge keep the video's proportions,
+    /// so it has to be reset whenever a new file changes the shape. `contentMinSize` moves
+    /// with it: a floor of a different shape to the ratio would leave AppKit reconciling
+    /// two contradictory constraints during a resize.
+    ///
+    /// This is also where the remembered size is written, because every path that changes
+    /// the window's size arrives here.
+    private func applySizeConstraints(forFrameSize frameSize: NSSize) {
+        guard let window else { return }
+        let contentSize = window.contentRect(
+            forFrameRect: NSRect(origin: .zero, size: frameSize)).size
+        guard contentSize.width > 0, contentSize.height > 0 else { return }
+
+        window.contentAspectRatio = contentSize
+        window.contentMinSize = WindowSizing.minimumContentSize(for: contentSize)
+        Preferences.shared.contentSize = contentSize
     }
 
-    /// Scales `videoSize` down to a small player, without going under the
-    /// minimum window size.
-    private static func contentSize(forVideo videoSize: NSSize?) -> NSSize {
-        guard let videoSize, videoSize.width > 0, videoSize.height > 0 else {
-            return Layout.defaultContentSize
-        }
+    /// The content area as it stands, which is also the player's current shape: 16:9 while
+    /// empty, the video's proportions once one is open.
+    private var currentContentSize: NSSize {
+        guard let window else { return Layout.defaultContentSize }
+        return window.contentRect(forFrameRect: window.frame).size
+    }
 
-        let scale = Layout.preferredLongestEdge / max(videoSize.width, videoSize.height)
-        var size = NSSize(
-            width: (videoSize.width * scale).rounded(),
-            height: (videoSize.height * scale).rounded()
-        )
+    /// Longest edge of the current content area, which a newly opened video is resized
+    /// to match so it inherits the size the player already has.
+    private var currentLongestContentEdge: CGFloat {
+        guard window != nil else { return Layout.preferredLongestEdge }
+        return max(currentContentSize.width, currentContentSize.height)
+    }
 
-        let minimum = Layout.minimumContentSize
-        if size.width < minimum.width || size.height < minimum.height {
-            let upscale = max(minimum.width / size.width, minimum.height / size.height)
-            size = NSSize(
-                width: (size.width * upscale).rounded(),
-                height: (size.height * upscale).rounded()
-            )
-        }
-
-        return size
+    private func currentVisibleFrame() -> NSRect? {
+        (window?.screen ?? NSScreen.main)?.visibleFrame
     }
 
     @objc private func screenParametersDidChange(_ notification: Notification) {
@@ -306,6 +417,22 @@ extension PlayerWindowController: NSWindowDelegate {
         // Resizing from a leading edge drags the origin with it; re-anchor so we
         // stay flush in the current corner.
         applyPlacement(animated: false)
+    }
+
+    /// Refuses a resize outright unless the player is normal.
+    ///
+    /// `isMovable` covers dragging but there is no equivalent flag for resizing, and
+    /// `.resizable` cannot simply be dropped from a borderless window's style mask
+    /// without rebuilding it. Returning the current size is the supported way to say no.
+    func windowWillResize(_ sender: NSWindow, to frameSize: NSSize) -> NSSize {
+        mode.acceptsDirectManipulation ? frameSize : sender.frame.size
+    }
+
+    func windowDidMove(_ notification: Notification) {
+        // Fires for our own animated corner moves as well as for a user drag, so only
+        // arm the snap while a button is actually down.
+        guard mode.acceptsDirectManipulation, NSEvent.pressedMouseButtons != 0 else { return }
+        beginDragReleaseWatch()
     }
 }
 

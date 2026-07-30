@@ -2,6 +2,30 @@ import AVFoundation
 import AVKit
 import AppKit
 
+/// An `AVPlayerView` that lets a drag on the picture move the window.
+///
+/// The video fills the whole window, so without this there is nothing left to drag by.
+/// Two mechanisms, because they cover different paths and neither is guaranteed on its own:
+/// `mouseDownCanMoveWindow` is what AppKit consults for `isMovableByWindowBackground`, and
+/// `performDrag(with:)` starts the same drag explicitly if the event reaches us instead.
+/// Whichever runs, the window moves once and `windowDidMove` arms the snap.
+///
+/// The transport controls are separate subviews, so they are hit first and keep taking
+/// their own clicks: you drag the picture and click the buttons. `isMovable` is false in
+/// the other two modes, which is what stops a drag there, so this needs to know nothing
+/// about modes itself.
+private final class DraggableVideoView: AVPlayerView {
+    override var mouseDownCanMoveWindow: Bool { true }
+
+    override func mouseDown(with event: NSEvent) {
+        guard let window, window.isMovable else {
+            super.mouseDown(with: event)
+            return
+        }
+        window.performDrag(with: event)
+    }
+}
+
 /// Owns the `AVPlayer` and the `AVPlayerView` that hosts it.
 ///
 /// `AVPlayerView` gives us the native transport controls and hardware decode via
@@ -13,12 +37,14 @@ final class PlaybackController {
 
     private(set) var currentURL: URL?
 
-    init() {
-        playerView = AVPlayerView()
+    /// `controlsVisible` comes from the restored mode rather than being assumed here, so
+    /// a player that relaunches into Avoid or Lock never shows a frame of controls first.
+    init(controlsVisible: Bool) {
+        playerView = DraggableVideoView()
         playerView.videoGravity = .resizeAspect
         playerView.showsFullScreenToggleButton = false
         playerView.updatesNowPlayingInfoCenter = false
-        setControlsVisible(PlayerMode.default.showsTransportControls)
+        setControlsVisible(controlsVisible)
     }
 
     /// `.none` removes the transport controls outright, so nothing fades in when the

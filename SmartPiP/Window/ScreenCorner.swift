@@ -10,6 +10,11 @@ enum ScreenCorner: String, CaseIterable {
     case bottomRight
     case bottomLeft
 
+    /// Where the player opens before it has ever been moved. Bottom-right is the
+    /// emptiest corner on a stock desktop — furthest from the menu bar, and clear of a
+    /// Dock parked at the bottom by `visibleFrame`.
+    static let `default`: ScreenCorner = .bottomRight
+
     /// The next corner clockwise.
     ///
     /// The one rotation in the app: the Cycle Corner shortcut and the avoidance
@@ -18,6 +23,21 @@ enum ScreenCorner: String, CaseIterable {
         let all = ScreenCorner.allCases
         let index = all.firstIndex(of: self) ?? 0
         return all[(index + 1) % all.count]
+    }
+
+    /// The corner for a window dragged so that its centre sits at `point`.
+    ///
+    /// Quadrants of `visibleFrame`, rather than distance to each corner's anchor: which
+    /// half of the screen you dragged towards is something you can judge by eye while
+    /// dragging, so the window lands where you meant it to. Ties go to the corner that
+    /// `frame(for:in:margin:)` measures from, which is bottom-left.
+    static func nearest(to point: NSPoint, in visibleFrame: NSRect) -> ScreenCorner {
+        switch (point.x >= visibleFrame.midX, point.y >= visibleFrame.midY) {
+        case (false, true): .topLeft
+        case (true, true): .topRight
+        case (true, false): .bottomRight
+        case (false, false): .bottomLeft
+        }
     }
 
     /// Frame for a window of `size` parked in this corner of `visibleFrame`.

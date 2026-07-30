@@ -2,8 +2,10 @@ import AppKit
 
 /// Borderless, always-on-top window that holds the player.
 ///
-/// It is deliberately not user-movable: position is owned entirely by
-/// `PlayerWindowController`, which only ever parks it in a screen corner.
+/// Position is owned by `PlayerWindowController`, which only ever parks it in a screen
+/// corner. A normal player can be dragged, but only to choose which corner: it snaps to
+/// the quadrant you let go in. Whether dragging and resizing are allowed at all depends
+/// on the mode, so the controller sets those too.
 final class PlayerWindow: NSWindow {
     override var canBecomeKey: Bool { true }
     override var canBecomeMain: Bool { true }
@@ -20,13 +22,15 @@ final class PlayerWindow: NSWindow {
 
         level = .floating
         collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary, .stationary]
-        isMovable = false
-        isMovableByWindowBackground = false
         hidesOnDeactivate = false
         isReleasedWhenClosed = false
         hasShadow = true
         backgroundColor = .black
-        minSize = Layout.minimumContentSize
         preventsApplicationTerminationWhenModal = false
+
+        // Size limits and the aspect lock are not set here: both depend on the shape of
+        // whatever is playing, so `PlayerWindowController` owns them and updates them
+        // together. Setting a floor here as well would just be a second answer to the
+        // same question.
     }
 }
