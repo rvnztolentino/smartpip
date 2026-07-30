@@ -21,29 +21,50 @@ extension HotKey {
         displayName: "⌃⌥⌘C"
     )
 
-    /// The primary control in lock mode: with the window click-through, this is the
-    /// only way back that does not depend on the pointer.
-    static let toggleLock = HotKey(
+    static let selectLock = HotKey(
         identifier: 2,
         keyCode: UInt32(kVK_ANSI_L),
         modifiers: UInt32(controlKey | optionKey | cmdKey),
         displayName: "⌃⌥⌘L"
     )
 
-    static let toggleAvoid = HotKey(
+    static let selectAvoid = HotKey(
         identifier: 3,
         keyCode: UInt32(kVK_ANSI_A),
         modifiers: UInt32(controlKey | optionKey | cmdKey),
         displayName: "⌃⌥⌘A"
     )
 
+    /// The way out of both other modes, and the primary control in lock mode: with the
+    /// window click-through, this is the only route back that does not need the pointer.
+    ///
+    /// It exists because selecting a mode no longer toggles it off. Without a shortcut of
+    /// its own, a locked player could only be released through the menu bar.
+    static let selectNormal = HotKey(
+        identifier: 4,
+        keyCode: UInt32(kVK_ANSI_N),
+        modifiers: UInt32(controlKey | optionKey | cmdKey),
+        displayName: "⌃⌥⌘N"
+    )
+
+    /// The shortcut for `mode`, so the menus and the registration table cannot disagree
+    /// about which key selects which mode.
+    static func selecting(_ mode: PlayerMode) -> HotKey {
+        switch mode {
+        case .plain: .selectNormal
+        case .avoid: .selectAvoid
+        case .lock: .selectLock
+        }
+    }
+
     /// Menu title with the shortcut appended.
     ///
     /// Menu items backed by a hot key deliberately carry no `keyEquivalent`. The
     /// Carbon hot key consumes the combination before the menu system sees it, and
-    /// binding it in both places risks the action running twice — which for a toggle
-    /// would look like nothing happening at all. Putting the shortcut in the title
-    /// keeps it discoverable without that risk.
+    /// binding it in both places risks the action running twice — which for a mode
+    /// selection would be invisible, and for the old toggles looked like nothing
+    /// happening at all. Putting the shortcut in the title keeps it discoverable
+    /// without that risk.
     func menuTitle(_ base: String) -> String {
         "\(base)  \(displayName)"
     }

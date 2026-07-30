@@ -12,7 +12,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let controller = PlayerWindowController()
         playerWindowController = controller
 
-        let statusItem = StatusItemController(target: self)
+        let statusItem = StatusItemController(target: self, mode: controller.mode)
         statusItemController = statusItem
         controller.onModeChange = { [weak statusItem] mode in
             statusItem?.update(mode: mode)
@@ -43,12 +43,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         playerWindowController?.cycleCorner()
     }
 
-    @objc func toggleAvoidMode(_ sender: Any?) {
-        playerWindowController?.toggle(.avoid)
+    @objc func selectNormalMode(_ sender: Any?) {
+        playerWindowController?.setMode(.plain)
     }
 
-    @objc func toggleLockMode(_ sender: Any?) {
-        playerWindowController?.toggle(.lock)
+    @objc func selectAvoidMode(_ sender: Any?) {
+        playerWindowController?.setMode(.avoid)
+    }
+
+    @objc func selectLockMode(_ sender: Any?) {
+        playerWindowController?.setMode(.lock)
     }
 
     @objc func togglePlayPause(_ sender: Any?) {
@@ -59,6 +63,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         Preferences.shared.animatesCornerTransition.toggle()
     }
 
+    @objc func resetSettings(_ sender: Any?) {
+        playerWindowController?.resetSettings()
+    }
+
     // MARK: - Private
 
     private static var appName: String {
@@ -67,8 +75,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     private func registerHotKeys() {
         register(.cycleCorner) { $0.cycleCorner() }
-        register(.toggleLock) { $0.toggle(.lock) }
-        register(.toggleAvoid) { $0.toggle(.avoid) }
+        for mode in PlayerMode.allCases {
+            register(.selecting(mode)) { $0.setMode(mode) }
+        }
     }
 
     private func register(_ hotKey: HotKey, action: @escaping (PlayerWindowController) -> Void) {
@@ -79,7 +88,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
         guard !registered else { return }
         NSLog(
-            "SmartPiP: could not register %@ — another app may already own that shortcut.",
+            "SmartPiP: could not register %@. Another app may already own that shortcut.",
             hotKey.displayName)
     }
 }
@@ -90,12 +99,17 @@ extension AppDelegate: NSMenuItemValidation {
     func validateMenuItem(_ menuItem: NSMenuItem) -> Bool {
         let mode = playerWindowController?.mode ?? .default
 
+        // Exactly one of the three mode items is ticked at all times. The item for the
+        // current mode stays enabled: selecting it is a no-op rather than an error, and
+        // greying it out would make the group look broken.
         switch menuItem.action {
         case #selector(toggleAnimatedCornerTransition(_:)):
             menuItem.state = Preferences.shared.animatesCornerTransition ? .on : .off
-        case #selector(toggleAvoidMode(_:)):
+        case #selector(selectNormalMode(_:)):
+            menuItem.state = mode == .plain ? .on : .off
+        case #selector(selectAvoidMode(_:)):
             menuItem.state = mode == .avoid ? .on : .off
-        case #selector(toggleLockMode(_:)):
+        case #selector(selectLockMode(_:)):
             menuItem.state = mode == .lock ? .on : .off
         case #selector(togglePlayPause(_:)):
             return playerWindowController?.canTogglePlayPause ?? false

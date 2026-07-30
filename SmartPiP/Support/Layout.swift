@@ -9,11 +9,14 @@ enum Layout {
     /// reports no usable video dimensions.
     static let defaultContentSize = NSSize(width: 480, height: 270)
 
-    /// Longest edge the window is allowed to take when it resizes itself to a
-    /// newly opened video. Keeps the player small enough to stay out of the way.
+    /// Longest edge for a player that has never been resized — small enough to stay out
+    /// of the way. Once the window has a size of its own, opening a file keeps that size
+    /// instead of coming back to this one.
     static let preferredLongestEdge: CGFloat = 480
 
-    /// Smallest the window may become, so it never collapses out of reach.
+    /// Smallest the window may become, so it never collapses out of reach. Expressed as a
+    /// 16:9 rectangle; `WindowSizing.minimumContentSize(for:)` reshapes it for videos of
+    /// other proportions.
     static let minimumContentSize = NSSize(width: 192, height: 108)
 
     /// Duration of an animated corner move.

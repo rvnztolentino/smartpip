@@ -2,13 +2,13 @@ import Foundation
 
 /// What the player is currently doing about the cursor.
 ///
-/// Avoid and Lock are mutually exclusive — switching one on switches the other off —
-/// so this is one setting with three values rather than two independent flags. At most
-/// one mode is ever ticked in the menus, and "avoiding while pinned in place", which
-/// was never coherent, is not representable.
+/// One setting with three values, not two independent flags: the three are presented as
+/// a single choice and exactly one is always ticked. Picking one selects it; picking the
+/// one already selected does nothing, so there is no state where none is ticked and no
+/// way to reach "avoiding while pinned in place", which was never coherent.
 enum PlayerMode: String, CaseIterable {
-    /// Neither mode. An ordinary always-on-top player, and the only state that has
-    /// transport controls.
+    /// Neither mode. An ordinary always-on-top player: the only state with transport
+    /// controls, and the only one you can drop a file onto or resize by hand.
     case plain
 
     /// The window moves out of the cursor's way.
@@ -38,13 +38,46 @@ enum PlayerMode: String, CaseIterable {
     /// wants neither, and the timer stops.
     var needsCursorTracking: Bool { self != .plain }
 
-    /// The mode you land in after asking for `mode`.
+    /// Whether a file can be dropped on the window and an edge dragged to resize it.
     ///
-    /// Asking for the mode you are already in switches it off; asking for the other
-    /// one replaces it. That is what makes the two menu items behave like one choice.
-    func toggled(_ mode: PlayerMode) -> PlayerMode {
-        self == mode ? .plain : mode
+    /// Both are direct manipulation of a window that the other two modes exist to keep
+    /// out of your way, so both are refused there. Avoid would run from the drag; Lock
+    /// would hand it to whatever is underneath. Refusing outright is more honest than
+    /// letting it work only if you are quick enough.
+    var acceptsDirectManipulation: Bool { self == .plain }
+
+    /// Title of this mode's menu item, in both menus.
+    var menuTitle: String {
+        switch self {
+        case .plain: "Normal Player"
+        case .avoid: "Avoid Cursor"
+        case .lock: "Lock Player"
+        }
     }
+
+    /// What to tell someone who tries to drop a file or resize the window, and `nil`
+    /// when there is nothing to say because both already work.
+    ///
+    /// Kept to two short lines. It is shown inside a small player, sometimes over a video,
+    /// so anything longer is read as clutter and skipped.
+    var directManipulationAdvice: String? {
+        switch self {
+        case .plain: nil
+        case .avoid:
+            """
+            Avoid mode is on.
+            \(Self.escapeAdvice)
+            """
+        case .lock:
+            """
+            Lock mode is on.
+            \(Self.escapeAdvice)
+            """
+        }
+    }
+
+    /// Named once: both modes are left the same way, and the wording should not drift.
+    private static let escapeAdvice = "Pick Normal Player to drop a file or resize, or use Open."
 
     /// SF Symbol shown in the menu bar.
     var statusSymbolName: String {
@@ -57,9 +90,9 @@ enum PlayerMode: String, CaseIterable {
 
     var statusDescription: String {
         switch self {
-        case .plain: "SmartPiP — plain player"
-        case .avoid: "SmartPiP — avoiding the cursor"
-        case .lock: "SmartPiP — locked, clicks pass through"
+        case .plain: "SmartPiP: normal player"
+        case .avoid: "SmartPiP: avoiding the cursor"
+        case .lock: "SmartPiP: locked, clicks pass through"
         }
     }
 }

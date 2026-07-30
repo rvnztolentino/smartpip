@@ -14,11 +14,13 @@ final class StatusItemController {
     private let statusItem: NSStatusItem
     private weak var target: AppDelegate?
 
-    init(target: AppDelegate) {
+    /// `mode` is the player's current mode, not an assumed default — at launch that is
+    /// the mode restored from the last session, and the icon has to agree with it.
+    init(target: AppDelegate, mode: PlayerMode) {
         self.target = target
         statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
         statusItem.menu = Self.makeMenu(target: target)
-        update(mode: .default)
+        update(mode: mode)
     }
 
     /// Reflects the current mode in the menu bar icon.
@@ -40,17 +42,22 @@ final class StatusItemController {
             action: #selector(AppDelegate.togglePlayPause(_:)), target: target)
         menu.addItem(.separator())
 
-        // Checkmarks are set per state in AppDelegate.validateMenuItem(_:).
-        add(to: menu, title: HotKey.toggleAvoid.menuTitle("Avoid Cursor"),
-            action: #selector(AppDelegate.toggleAvoidMode(_:)), target: target)
-        add(to: menu, title: HotKey.toggleLock.menuTitle("Lock Player"),
-            action: #selector(AppDelegate.toggleLockMode(_:)), target: target)
+        // The same three-option group as the Player menu, in the same order, from the same
+        // titles and selectors. Checkmarks are set in AppDelegate.validateMenuItem(_:).
+        for mode in [PlayerMode.plain, .avoid, .lock] {
+            add(to: menu, title: HotKey.selecting(mode).menuTitle(mode.menuTitle),
+                action: MainMenuBuilder.action(selecting: mode), target: target)
+        }
         menu.addItem(.separator())
 
         add(to: menu, title: HotKey.cycleCorner.menuTitle("Cycle Corner"),
             action: #selector(AppDelegate.cycleCorner(_:)), target: target)
         add(to: menu, title: "Animate Corner Moves",
             action: #selector(AppDelegate.toggleAnimatedCornerTransition(_:)), target: target)
+        menu.addItem(.separator())
+
+        add(to: menu, title: "Reset Settings",
+            action: #selector(AppDelegate.resetSettings(_:)), target: target)
         menu.addItem(.separator())
 
         add(to: menu, title: "Quit SmartPiP",

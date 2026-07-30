@@ -75,16 +75,15 @@ enum MainMenuBuilder {
 
         menu.addItem(.separator())
 
-        // Checkmarks are set per state in AppDelegate.validateMenuItem(_:).
-        menu.addItem(
-            withTitle: HotKey.toggleAvoid.menuTitle("Avoid Cursor"),
-            action: #selector(AppDelegate.toggleAvoidMode(_:)),
-            keyEquivalent: "")
-
-        menu.addItem(
-            withTitle: HotKey.toggleLock.menuTitle("Lock Player"),
-            action: #selector(AppDelegate.toggleLockMode(_:)),
-            keyEquivalent: "")
+        // One choice with three options: exactly one is ticked, and the tick is set per
+        // state in AppDelegate.validateMenuItem(_:). Normal comes first because it is the
+        // state the other two are departures from.
+        for mode in [PlayerMode.plain, .avoid, .lock] {
+            menu.addItem(
+                withTitle: HotKey.selecting(mode).menuTitle(mode.menuTitle),
+                action: Self.action(selecting: mode),
+                keyEquivalent: "")
+        }
 
         menu.addItem(.separator())
 
@@ -98,7 +97,26 @@ enum MainMenuBuilder {
             action: #selector(AppDelegate.toggleAnimatedCornerTransition(_:)),
             keyEquivalent: "")
 
+        menu.addItem(.separator())
+
+        menu.addItem(
+            withTitle: "Reset Settings",
+            action: #selector(AppDelegate.resetSettings(_:)),
+            keyEquivalent: "")
+
         return submenuItem(titled: "Player", menu: menu)
+    }
+
+    /// The selector that selects `mode`.
+    ///
+    /// Shared with `StatusItemController` so the two menus cannot drift apart, and kept as
+    /// a `switch` rather than a string so a renamed action fails to compile.
+    static func action(selecting mode: PlayerMode) -> Selector {
+        switch mode {
+        case .plain: #selector(AppDelegate.selectNormalMode(_:))
+        case .avoid: #selector(AppDelegate.selectAvoidMode(_:))
+        case .lock: #selector(AppDelegate.selectLockMode(_:))
+        }
     }
 
     @MainActor
