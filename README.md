@@ -10,9 +10,6 @@ underneath keeps working. Zero dependencies: everything it uses ships with macOS
 One choice with three options, in both the Player menu and the menu bar item. Exactly one
 is selected at all times, and picking the one already selected does nothing.
 
-> The recordings below are placeholders. See [docs/media/README.md](docs/media/README.md)
-> for what each one should show.
-
 ### Avoid Cursor (⌃⌥⌘A, the default)
 
 As the cursor gets close, the player moves to the next corner clockwise. Always one
@@ -45,7 +42,16 @@ that quarter of the screen.
   and hardware decode through VideoToolbox
 - Carbon `RegisterEventHotKey` for the global shortcuts, which needs no permission prompt
 - `UserDefaults` for remembered corner, mode and size
-- macOS 14 or later, Apple silicon or Intel
+
+## Requirements
+
+**macOS 14 Sonoma or later.** That is the deployment target, set in both
+`SmartPiP/Info.plist` and the project file, so the app will not launch on anything older.
+
+Apple silicon and Intel are both supported when you build it yourself. Note that
+`Scripts/build-cli.sh` compiles for the machine it runs on, so a build made on Apple
+silicon is arm64 only. If you need one binary for both, build twice and join them with
+`lipo`, or build from the Xcode project.
 
 ## Setup
 
