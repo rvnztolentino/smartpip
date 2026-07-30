@@ -14,12 +14,11 @@ final class CursorTracker {
     /// 15 Hz. Fast enough to feel immediate, slow enough to be free.
     private static let interval: TimeInterval = 1.0 / 15.0
 
-    private let onMove: (NSPoint) -> Void
+    private let onSample: (NSPoint) -> Void
     private var timer: Timer?
-    private var lastPoint: NSPoint?
 
-    init(onMove: @escaping (NSPoint) -> Void) {
-        self.onMove = onMove
+    init(onSample: @escaping (NSPoint) -> Void) {
+        self.onSample = onSample
     }
 
     deinit {
@@ -51,13 +50,15 @@ final class CursorTracker {
     func stop() {
         timer?.invalidate()
         timer = nil
-        lastPoint = nil
     }
 
+    /// Reports every sample, including ones where the cursor has not moved.
+    ///
+    /// Suppressing repeats looks like free savings and is not: the window moves too,
+    /// so the distance between the two changes with a perfectly still pointer. A
+    /// reader that only hears about movement misses the window landing somewhere new,
+    /// and can be left waiting for a mouse event that is never coming.
     private func tick() {
-        let point = NSEvent.mouseLocation
-        guard point != lastPoint else { return }
-        lastPoint = point
-        onMove(point)
+        onSample(NSEvent.mouseLocation)
     }
 }

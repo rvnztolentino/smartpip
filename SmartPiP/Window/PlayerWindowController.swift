@@ -9,15 +9,16 @@ import QuartzCore
 @MainActor
 final class PlayerWindowController: NSWindowController {
     private(set) var corner: ScreenCorner = .bottomRight
-    private(set) var modes: PlayerModes = .default
+    private(set) var mode: PlayerMode = .default
 
-    /// Called after `modes` changes, so the menu bar item can follow along.
-    var onModesChange: ((PlayerModes) -> Void)?
+    /// Called after `mode` changes, so the menu bar item can follow along.
+    var onModeChange: ((PlayerMode) -> Void)?
 
     private let playback: PlaybackController
     private let contentView: PlayerContentView
     private var cursorTracker: CursorTracker?
     private var isCursorOverWindow = false
+    private var avoidance = AvoidanceTrigger()
 
     init() {
         let playback = PlaybackController()
@@ -34,11 +35,11 @@ final class PlayerWindowController: NSWindowController {
         contentView.delegate = self
 
         cursorTracker = CursorTracker { [weak self] point in
-            self?.cursorMoved(to: point)
+            self?.cursorSampled(at: point)
         }
 
         applyPlacement(animated: false)
-        applyModes(animated: false)
+        applyMode(animated: false)
 
         NotificationCenter.default.addObserver(
             self,
@@ -87,29 +88,33 @@ final class PlayerWindowController: NSWindowController {
         }
     }
 
-    // MARK: - Modes
+    // MARK: - Mode
 
-    func toggle(_ mode: PlayerModes) {
-        setModes(modes.symmetricDifference(mode))
+    /// Switches `mode` on, or off if it is already on.
+    ///
+    /// Avoid and Lock are one choice, so asking for one switches the other off. Both
+    /// menu items go through here, which is what keeps at most one of them ticked.
+    func toggle(_ mode: PlayerMode) {
+        setMode(self.mode.toggled(mode))
     }
 
-    func setModes(_ newModes: PlayerModes) {
-        guard newModes != modes else { return }
-        modes = newModes
-        applyModes(animated: true)
-        onModesChange?(newModes)
+    func setMode(_ newMode: PlayerMode) {
+        guard newMode != mode else { return }
+        mode = newMode
+        applyMode(animated: true)
+        onModeChange?(newMode)
     }
 
     /// Locking does not dim on its own — the window only fades while the cursor is
     /// actually over it. Unlocking does not steal focus either; clicking the window
     /// does that.
-    private func applyModes(animated: Bool) {
+    private func applyMode(animated: Bool) {
         guard let window else { return }
 
-        window.ignoresMouseEvents = modes.isClickThrough
-        playback.setControlsVisible(modes.showsTransportControls)
+        window.ignoresMouseEvents = mode.isClickThrough
+        playback.setControlsVisible(mode.showsTransportControls)
 
-        if modes.needsCursorTracking {
+        if mode.needsCursorTracking {
             cursorTracker?.start()
         } else {
             cursorTracker?.stop()
@@ -117,17 +122,32 @@ final class PlayerWindowController: NSWindowController {
         }
 
         applyOpacity(animated: animated)
+
+        // A mode change is a deliberate act, so judge it on where the cursor is now
+        // rather than inheriting a disarm from the last dodge. Sampling here as well
+        // makes the toggle land immediately: switching from Lock to Avoid leaves the
+        // tracker already running, so nothing else would look at the cursor until
+        // its next tick.
+        avoidance.rearm()
+        if mode.avoidsCursor {
+            updateAvoidance(for: NSEvent.mouseLocation)
+        }
     }
 
     // MARK: - Cursor proximity
 
+    private func cursorSampled(at point: NSPoint) {
+        updateHoverFade(for: point)
+        updateAvoidance(for: point)
+    }
+
     /// Fade only applies to a locked player: that is when you cannot move the window
     /// out of the way by hand, so seeing through it is the only option.
     private var targetAlpha: CGFloat {
-        modes.isClickThrough && isCursorOverWindow ? Layout.hoveredWindowAlpha : 1
+        mode.isClickThrough && isCursorOverWindow ? Layout.hoveredWindowAlpha : 1
     }
 
-    private func cursorMoved(to point: NSPoint) {
+    private func updateHoverFade(for point: NSPoint) {
         guard let window else { return }
 
         // Asymmetric bounds: the cursor has to clear the frame by a small margin
@@ -140,6 +160,30 @@ final class PlayerWindowController: NSWindowController {
         guard isOver != isCursorOverWindow else { return }
         isCursorOverWindow = isOver
         applyOpacity(animated: true)
+    }
+
+    // MARK: - Avoidance
+
+    /// Runs the window away from an approaching cursor.
+    ///
+    /// Driven from the global cursor poll rather than the window's own
+    /// mouse-entered events: the window moves out from under the cursor, which
+    /// would immediately fire `mouseExited` and start a loop.
+    private func updateAvoidance(for point: NSPoint) {
+        guard mode.avoidsCursor,
+              let window,
+              let visibleFrame = currentVisibleFrame()
+        else { return }
+
+        let distance = AvoidanceResolver.distance(from: point, to: window.frame)
+        guard avoidance.shouldFlee(distance: distance) else { return }
+
+        move(to: AvoidanceResolver.destination(
+            from: corner,
+            size: window.frame.size,
+            cursor: point,
+            visibleFrame: visibleFrame,
+            margin: Layout.cornerMargin))
     }
 
     private func applyOpacity(animated: Bool) {
@@ -177,6 +221,14 @@ final class PlayerWindowController: NSWindowController {
 
     func move(to corner: ScreenCorner) {
         self.corner = corner
+
+        // Every animated move — dodge or manual cycle — puts the window in flight
+        // across the screen, so hold avoidance off until it has landed.
+        if Preferences.shared.animatesCornerTransition {
+            avoidance.windowIsMoving(
+                until: Date().addingTimeInterval(Layout.cornerAnimationDuration))
+        }
+
         applyPlacement(animated: true)
     }
 

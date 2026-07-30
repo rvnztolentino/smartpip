@@ -18,18 +18,18 @@ final class StatusItemController {
         self.target = target
         statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
         statusItem.menu = Self.makeMenu(target: target)
-        update(modes: .default)
+        update(mode: .default)
     }
 
-    /// Reflects the current modes in the menu bar icon.
-    func update(modes: PlayerModes) {
+    /// Reflects the current mode in the menu bar icon.
+    func update(mode: PlayerMode) {
         guard let button = statusItem.button else { return }
         let image = NSImage(
-            systemSymbolName: modes.statusSymbolName,
-            accessibilityDescription: modes.statusDescription)
+            systemSymbolName: mode.statusSymbolName,
+            accessibilityDescription: mode.statusDescription)
         image?.isTemplate = true
         button.image = image
-        button.toolTip = modes.statusDescription
+        button.toolTip = mode.statusDescription
     }
 
     private static func makeMenu(target: AppDelegate) -> NSMenu {

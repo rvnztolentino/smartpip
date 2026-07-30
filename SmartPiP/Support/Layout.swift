@@ -29,4 +29,12 @@ enum Layout {
 
     /// Duration of the fade in and out.
     static let opacityFadeDuration: TimeInterval = 0.15
+
+    /// How close the cursor has to get to the window's frame before the window runs.
+    static let avoidTriggerDistance: CGFloat = 56
+
+    /// How far the cursor must then get from the frame before the window will run
+    /// again. The gap between this and the trigger distance is what stops a pointer
+    /// parked near an edge from pumping the window around the screen.
+    static let avoidReleaseDistance: CGFloat = 160
 }

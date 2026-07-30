@@ -10,43 +10,47 @@
 		B10000000000000000000001 /* SmartPiPApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = F10000000000000000000001 /* SmartPiPApp.swift */; };
 		B10000000000000000000002 /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = F10000000000000000000002 /* AppDelegate.swift */; };
 		B10000000000000000000003 /* ScreenCorner.swift in Sources */ = {isa = PBXBuildFile; fileRef = F10000000000000000000003 /* ScreenCorner.swift */; };
-		B10000000000000000000004 /* PlayerModes.swift in Sources */ = {isa = PBXBuildFile; fileRef = F10000000000000000000004 /* PlayerModes.swift */; };
-		B10000000000000000000005 /* PlayerWindow.swift in Sources */ = {isa = PBXBuildFile; fileRef = F10000000000000000000005 /* PlayerWindow.swift */; };
-		B10000000000000000000006 /* PlayerWindowController.swift in Sources */ = {isa = PBXBuildFile; fileRef = F10000000000000000000006 /* PlayerWindowController.swift */; };
-		B10000000000000000000007 /* VideoFile.swift in Sources */ = {isa = PBXBuildFile; fileRef = F10000000000000000000007 /* VideoFile.swift */; };
-		B10000000000000000000008 /* PlaybackController.swift in Sources */ = {isa = PBXBuildFile; fileRef = F10000000000000000000008 /* PlaybackController.swift */; };
-		B10000000000000000000009 /* PlayerContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F10000000000000000000009 /* PlayerContentView.swift */; };
-		B1000000000000000000000A /* MainMenuBuilder.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1000000000000000000000A /* MainMenuBuilder.swift */; };
-		B1000000000000000000000B /* StatusItemController.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1000000000000000000000B /* StatusItemController.swift */; };
-		B1000000000000000000000C /* HotKeyCenter.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1000000000000000000000C /* HotKeyCenter.swift */; };
-		B1000000000000000000000D /* CursorTracker.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1000000000000000000000D /* CursorTracker.swift */; };
-		B1000000000000000000000E /* Layout.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1000000000000000000000E /* Layout.swift */; };
-		B1000000000000000000000F /* Preferences.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1000000000000000000000F /* Preferences.swift */; };
-		B10000000000000000000010 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = F10000000000000000000010 /* Assets.xcassets */; };
+		B10000000000000000000004 /* PlayerMode.swift in Sources */ = {isa = PBXBuildFile; fileRef = F10000000000000000000004 /* PlayerMode.swift */; };
+		B10000000000000000000005 /* AvoidanceResolver.swift in Sources */ = {isa = PBXBuildFile; fileRef = F10000000000000000000005 /* AvoidanceResolver.swift */; };
+		B10000000000000000000006 /* AvoidanceTrigger.swift in Sources */ = {isa = PBXBuildFile; fileRef = F10000000000000000000006 /* AvoidanceTrigger.swift */; };
+		B10000000000000000000007 /* PlayerWindow.swift in Sources */ = {isa = PBXBuildFile; fileRef = F10000000000000000000007 /* PlayerWindow.swift */; };
+		B10000000000000000000008 /* PlayerWindowController.swift in Sources */ = {isa = PBXBuildFile; fileRef = F10000000000000000000008 /* PlayerWindowController.swift */; };
+		B10000000000000000000009 /* VideoFile.swift in Sources */ = {isa = PBXBuildFile; fileRef = F10000000000000000000009 /* VideoFile.swift */; };
+		B1000000000000000000000A /* PlaybackController.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1000000000000000000000A /* PlaybackController.swift */; };
+		B1000000000000000000000B /* PlayerContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1000000000000000000000B /* PlayerContentView.swift */; };
+		B1000000000000000000000C /* MainMenuBuilder.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1000000000000000000000C /* MainMenuBuilder.swift */; };
+		B1000000000000000000000D /* StatusItemController.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1000000000000000000000D /* StatusItemController.swift */; };
+		B1000000000000000000000E /* HotKeyCenter.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1000000000000000000000E /* HotKeyCenter.swift */; };
+		B1000000000000000000000F /* CursorTracker.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1000000000000000000000F /* CursorTracker.swift */; };
+		B10000000000000000000010 /* Layout.swift in Sources */ = {isa = PBXBuildFile; fileRef = F10000000000000000000010 /* Layout.swift */; };
+		B10000000000000000000011 /* Preferences.swift in Sources */ = {isa = PBXBuildFile; fileRef = F10000000000000000000011 /* Preferences.swift */; };
+		B10000000000000000000012 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = F10000000000000000000012 /* Assets.xcassets */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
 		F10000000000000000000001 /* SmartPiPApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SmartPiPApp.swift; sourceTree = "<group>"; };
 		F10000000000000000000002 /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppDelegate.swift; sourceTree = "<group>"; };
 		F10000000000000000000003 /* ScreenCorner.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScreenCorner.swift; sourceTree = "<group>"; };
-		F10000000000000000000004 /* PlayerModes.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlayerModes.swift; sourceTree = "<group>"; };
-		F10000000000000000000005 /* PlayerWindow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlayerWindow.swift; sourceTree = "<group>"; };
-		F10000000000000000000006 /* PlayerWindowController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlayerWindowController.swift; sourceTree = "<group>"; };
-		F10000000000000000000007 /* VideoFile.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VideoFile.swift; sourceTree = "<group>"; };
-		F10000000000000000000008 /* PlaybackController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlaybackController.swift; sourceTree = "<group>"; };
-		F10000000000000000000009 /* PlayerContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlayerContentView.swift; sourceTree = "<group>"; };
-		F1000000000000000000000A /* MainMenuBuilder.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MainMenuBuilder.swift; sourceTree = "<group>"; };
-		F1000000000000000000000B /* StatusItemController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StatusItemController.swift; sourceTree = "<group>"; };
-		F1000000000000000000000C /* HotKeyCenter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HotKeyCenter.swift; sourceTree = "<group>"; };
-		F1000000000000000000000D /* CursorTracker.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CursorTracker.swift; sourceTree = "<group>"; };
-		F1000000000000000000000E /* Layout.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Layout.swift; sourceTree = "<group>"; };
-		F1000000000000000000000F /* Preferences.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Preferences.swift; sourceTree = "<group>"; };
-		F10000000000000000000010 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
-		F10000000000000000000011 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
-		F10000000000000000000012 /* ICONS.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = ICONS.md; sourceTree = "<group>"; };
-		F10000000000000000000013 /* generate-app-icons.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = generate-app-icons.swift; sourceTree = "<group>"; };
-		F10000000000000000000014 /* build-cli.sh */ = {isa = PBXFileReference; lastKnownFileType = text.script.sh; path = build-cli.sh; sourceTree = "<group>"; };
-		F10000000000000000000015 /* SmartPiP.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = SmartPiP.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		F10000000000000000000004 /* PlayerMode.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlayerMode.swift; sourceTree = "<group>"; };
+		F10000000000000000000005 /* AvoidanceResolver.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AvoidanceResolver.swift; sourceTree = "<group>"; };
+		F10000000000000000000006 /* AvoidanceTrigger.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AvoidanceTrigger.swift; sourceTree = "<group>"; };
+		F10000000000000000000007 /* PlayerWindow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlayerWindow.swift; sourceTree = "<group>"; };
+		F10000000000000000000008 /* PlayerWindowController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlayerWindowController.swift; sourceTree = "<group>"; };
+		F10000000000000000000009 /* VideoFile.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VideoFile.swift; sourceTree = "<group>"; };
+		F1000000000000000000000A /* PlaybackController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlaybackController.swift; sourceTree = "<group>"; };
+		F1000000000000000000000B /* PlayerContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlayerContentView.swift; sourceTree = "<group>"; };
+		F1000000000000000000000C /* MainMenuBuilder.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MainMenuBuilder.swift; sourceTree = "<group>"; };
+		F1000000000000000000000D /* StatusItemController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StatusItemController.swift; sourceTree = "<group>"; };
+		F1000000000000000000000E /* HotKeyCenter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HotKeyCenter.swift; sourceTree = "<group>"; };
+		F1000000000000000000000F /* CursorTracker.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CursorTracker.swift; sourceTree = "<group>"; };
+		F10000000000000000000010 /* Layout.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Layout.swift; sourceTree = "<group>"; };
+		F10000000000000000000011 /* Preferences.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Preferences.swift; sourceTree = "<group>"; };
+		F10000000000000000000012 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
+		F10000000000000000000013 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
+		F10000000000000000000014 /* ICONS.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = ICONS.md; sourceTree = "<group>"; };
+		F10000000000000000000015 /* generate-app-icons.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = generate-app-icons.swift; sourceTree = "<group>"; };
+		F10000000000000000000016 /* build-cli.sh */ = {isa = PBXFileReference; lastKnownFileType = text.script.sh; path = build-cli.sh; sourceTree = "<group>"; };
+		F10000000000000000000017 /* SmartPiP.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = SmartPiP.app; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -65,7 +69,7 @@
 			children = (
 				C10000000000000000000002,
 				C10000000000000000000008,
-				F10000000000000000000012,
+				F10000000000000000000014,
 				C10000000000000000000009,
 			);
 			sourceTree = "<group>";
@@ -80,8 +84,8 @@
 				C10000000000000000000005,
 				C10000000000000000000006,
 				C10000000000000000000007,
-				F10000000000000000000010,
-				F10000000000000000000011,
+				F10000000000000000000012,
+				F10000000000000000000013,
 			);
 			path = SmartPiP;
 			sourceTree = "<group>";
@@ -93,6 +97,8 @@
 				F10000000000000000000004,
 				F10000000000000000000005,
 				F10000000000000000000006,
+				F10000000000000000000007,
+				F10000000000000000000008,
 			);
 			path = Window;
 			sourceTree = "<group>";
@@ -100,9 +106,9 @@
 		C10000000000000000000004 /* Player */ = {
 			isa = PBXGroup;
 			children = (
-				F10000000000000000000007,
-				F10000000000000000000008,
 				F10000000000000000000009,
+				F1000000000000000000000A,
+				F1000000000000000000000B,
 			);
 			path = Player;
 			sourceTree = "<group>";
@@ -110,8 +116,8 @@
 		C10000000000000000000005 /* Menu */ = {
 			isa = PBXGroup;
 			children = (
-				F1000000000000000000000A,
-				F1000000000000000000000B,
+				F1000000000000000000000C,
+				F1000000000000000000000D,
 			);
 			path = Menu;
 			sourceTree = "<group>";
@@ -119,8 +125,8 @@
 		C10000000000000000000006 /* Input */ = {
 			isa = PBXGroup;
 			children = (
-				F1000000000000000000000C,
-				F1000000000000000000000D,
+				F1000000000000000000000E,
+				F1000000000000000000000F,
 			);
 			path = Input;
 			sourceTree = "<group>";
@@ -128,8 +134,8 @@
 		C10000000000000000000007 /* Support */ = {
 			isa = PBXGroup;
 			children = (
-				F1000000000000000000000E,
-				F1000000000000000000000F,
+				F10000000000000000000010,
+				F10000000000000000000011,
 			);
 			path = Support;
 			sourceTree = "<group>";
@@ -137,8 +143,8 @@
 		C10000000000000000000008 /* Scripts */ = {
 			isa = PBXGroup;
 			children = (
-				F10000000000000000000013,
-				F10000000000000000000014,
+				F10000000000000000000015,
+				F10000000000000000000016,
 			);
 			path = Scripts;
 			sourceTree = "<group>";
@@ -146,7 +152,7 @@
 		C10000000000000000000009 /* Products */ = {
 			isa = PBXGroup;
 			children = (
-				F10000000000000000000015,
+				F10000000000000000000017,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -168,7 +174,7 @@
 			);
 			name = SmartPiP;
 			productName = SmartPiP;
-			productReference = F10000000000000000000015 /* SmartPiP.app */;
+			productReference = F10000000000000000000017 /* SmartPiP.app */;
 			productType = "com.apple.product-type.application";
 		};
 /* End PBXNativeTarget section */
@@ -209,7 +215,7 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				B10000000000000000000010 /* Assets.xcassets in Resources */,
+				B10000000000000000000012 /* Assets.xcassets in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -223,18 +229,20 @@
 				B10000000000000000000001 /* SmartPiPApp.swift in Sources */,
 				B10000000000000000000002 /* AppDelegate.swift in Sources */,
 				B10000000000000000000003 /* ScreenCorner.swift in Sources */,
-				B10000000000000000000004 /* PlayerModes.swift in Sources */,
-				B10000000000000000000005 /* PlayerWindow.swift in Sources */,
-				B10000000000000000000006 /* PlayerWindowController.swift in Sources */,
-				B10000000000000000000007 /* VideoFile.swift in Sources */,
-				B10000000000000000000008 /* PlaybackController.swift in Sources */,
-				B10000000000000000000009 /* PlayerContentView.swift in Sources */,
-				B1000000000000000000000A /* MainMenuBuilder.swift in Sources */,
-				B1000000000000000000000B /* StatusItemController.swift in Sources */,
-				B1000000000000000000000C /* HotKeyCenter.swift in Sources */,
-				B1000000000000000000000D /* CursorTracker.swift in Sources */,
-				B1000000000000000000000E /* Layout.swift in Sources */,
-				B1000000000000000000000F /* Preferences.swift in Sources */,
+				B10000000000000000000004 /* PlayerMode.swift in Sources */,
+				B10000000000000000000005 /* AvoidanceResolver.swift in Sources */,
+				B10000000000000000000006 /* AvoidanceTrigger.swift in Sources */,
+				B10000000000000000000007 /* PlayerWindow.swift in Sources */,
+				B10000000000000000000008 /* PlayerWindowController.swift in Sources */,
+				B10000000000000000000009 /* VideoFile.swift in Sources */,
+				B1000000000000000000000A /* PlaybackController.swift in Sources */,
+				B1000000000000000000000B /* PlayerContentView.swift in Sources */,
+				B1000000000000000000000C /* MainMenuBuilder.swift in Sources */,
+				B1000000000000000000000D /* StatusItemController.swift in Sources */,
+				B1000000000000000000000E /* HotKeyCenter.swift in Sources */,
+				B1000000000000000000000F /* CursorTracker.swift in Sources */,
+				B10000000000000000000010 /* Layout.swift in Sources */,
+				B10000000000000000000011 /* Preferences.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
