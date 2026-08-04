@@ -47,16 +47,6 @@ echo "==> Assembling bundle"
 cp "$ROOT/SmartPiP/Info.plist" "$APP/Contents/Info.plist"
 printf 'APPL????' > "$APP/Contents/PkgInfo"
 
-# The asset catalog needs actool (Xcode only), so build an .icns from the same
-# PNGs instead. The AppIcon.appiconset filenames already match what iconutil
-# expects from an .iconset, so this is a straight copy.
-ICONSET="$BUILD_DIR/AppIcon.iconset"
-rm -rf "$ICONSET"
-mkdir -p "$ICONSET"
-cp "$ROOT"/SmartPiP/Assets.xcassets/AppIcon.appiconset/*.png "$ICONSET/"
-iconutil --convert icns --output "$APP/Contents/Resources/AppIcon.icns" "$ICONSET"
-rm -rf "$ICONSET"
-
 echo "==> Signing (ad hoc)"
 codesign --force --sign - "$APP"
 
