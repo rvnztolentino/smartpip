@@ -15,9 +15,12 @@ final class Preferences {
         static let mode = "lastMode"
         static let contentWidth = "lastContentWidth"
         static let contentHeight = "lastContentHeight"
+        static let isCollapsed = "isCollapsed"
 
         /// Every key this class owns, so a reset cannot miss one that is added later.
-        static let all = [animatesCornerTransition, corner, mode, contentWidth, contentHeight]
+        static let all = [
+            animatesCornerTransition, corner, mode, contentWidth, contentHeight, isCollapsed,
+        ]
     }
 
     private let defaults: UserDefaults
@@ -73,6 +76,15 @@ final class Preferences {
             defaults.set(newValue?.width ?? 0, forKey: Key.contentWidth)
             defaults.set(newValue?.height ?? 0, forKey: Key.contentHeight)
         }
+    }
+
+    /// Whether the player was left collapsed against the screen edge.
+    ///
+    /// Only ever true alongside Normal Player, since that is the only mode that can be
+    /// collapsed. Absent, which is what a fresh install reads, means expanded.
+    var isCollapsed: Bool {
+        get { defaults.bool(forKey: Key.isCollapsed) }
+        set { defaults.set(newValue, forKey: Key.isCollapsed) }
     }
 
     /// Forgets everything remembered.

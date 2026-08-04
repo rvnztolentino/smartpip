@@ -9,6 +9,9 @@ import AppKit
 /// This exists because a click-through window receives no mouse events of its own — an
 /// `NSTrackingArea` on a locked player never fires. Anything that has to know where the
 /// pointer is while locked has to ask, rather than wait to be told.
+///
+/// It has since become the app's only clock. The override key is read on the same tick, for
+/// the same reason and for free: one timer, already running whenever either could matter.
 @MainActor
 final class CursorTracker {
     /// 15 Hz. Fast enough to feel immediate, slow enough to be free.

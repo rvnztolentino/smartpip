@@ -26,6 +26,12 @@
 		B10000000000000000000011 /* Layout.swift in Sources */ = {isa = PBXBuildFile; fileRef = F10000000000000000000011 /* Layout.swift */; };
 		B10000000000000000000012 /* Preferences.swift in Sources */ = {isa = PBXBuildFile; fileRef = F10000000000000000000012 /* Preferences.swift */; };
 		B10000000000000000000013 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = F10000000000000000000013 /* Assets.xcassets */; };
+		B10000000000000000000019 /* PlayerBehaviour.swift in Sources */ = {isa = PBXBuildFile; fileRef = F10000000000000000000019 /* PlayerBehaviour.swift */; };
+		B1000000000000000000001A /* CollapseResolver.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1000000000000000000001A /* CollapseResolver.swift */; };
+		B1000000000000000000001B /* CollapseControls.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1000000000000000000001B /* CollapseControls.swift */; };
+		B1000000000000000000001C /* OverrideKey.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1000000000000000000001C /* OverrideKey.swift */; };
+		B1000000000000000000001D /* PeekTrigger.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1000000000000000000001D /* PeekTrigger.swift */; };
+		B1000000000000000000001E /* WindowDragger.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1000000000000000000001E /* WindowDragger.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -53,6 +59,12 @@
 		F10000000000000000000016 /* generate-app-icons.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = generate-app-icons.swift; sourceTree = "<group>"; };
 		F10000000000000000000017 /* build-cli.sh */ = {isa = PBXFileReference; lastKnownFileType = text.script.sh; path = build-cli.sh; sourceTree = "<group>"; };
 		F10000000000000000000018 /* SmartPiP.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = SmartPiP.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		F10000000000000000000019 /* PlayerBehaviour.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlayerBehaviour.swift; sourceTree = "<group>"; };
+		F1000000000000000000001A /* CollapseResolver.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CollapseResolver.swift; sourceTree = "<group>"; };
+		F1000000000000000000001B /* CollapseControls.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CollapseControls.swift; sourceTree = "<group>"; };
+		F1000000000000000000001C /* OverrideKey.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OverrideKey.swift; sourceTree = "<group>"; };
+		F1000000000000000000001D /* PeekTrigger.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PeekTrigger.swift; sourceTree = "<group>"; };
+		F1000000000000000000001E /* WindowDragger.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WindowDragger.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -102,6 +114,9 @@
 				F10000000000000000000007,
 				F10000000000000000000008,
 				F10000000000000000000009,
+				F10000000000000000000019,
+				F1000000000000000000001A,
+				F1000000000000000000001D,
 			);
 			path = Window;
 			sourceTree = "<group>";
@@ -112,6 +127,8 @@
 				F1000000000000000000000A,
 				F1000000000000000000000B,
 				F1000000000000000000000C,
+				F1000000000000000000001B,
+				F1000000000000000000001E,
 			);
 			path = Player;
 			sourceTree = "<group>";
@@ -130,6 +147,7 @@
 			children = (
 				F1000000000000000000000F,
 				F10000000000000000000010,
+				F1000000000000000000001C,
 			);
 			path = Input;
 			sourceTree = "<group>";
@@ -247,6 +265,12 @@
 				B10000000000000000000010 /* CursorTracker.swift in Sources */,
 				B10000000000000000000011 /* Layout.swift in Sources */,
 				B10000000000000000000012 /* Preferences.swift in Sources */,
+				B10000000000000000000019 /* PlayerBehaviour.swift in Sources */,
+				B1000000000000000000001A /* CollapseResolver.swift in Sources */,
+				B1000000000000000000001B /* CollapseControls.swift in Sources */,
+				B1000000000000000000001C /* OverrideKey.swift in Sources */,
+				B1000000000000000000001D /* PeekTrigger.swift in Sources */,
+				B1000000000000000000001E /* WindowDragger.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

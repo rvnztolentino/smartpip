@@ -40,4 +40,38 @@ enum Layout {
     /// again. The gap between this and the trigger distance is what stops a pointer
     /// parked near an edge from pumping the window around the screen.
     static let avoidReleaseDistance: CGFloat = 160
+
+    /// Width of the collapse tab, which is also exactly how much of a collapsed player is
+    /// left in view: the tab sits on the window's inner edge, so collapsing brings it flush
+    /// against the screen edge and leaves nothing else behind.
+    ///
+    /// Wide enough to click without aiming, because the pointer stops dead at the screen
+    /// edge and lands on the tab whatever speed it arrives at. Narrow enough that what is
+    /// left reads as an edge marker rather than as a window someone forgot to close.
+    static let collapseTabWidth: CGFloat = 16
+
+    /// Height of the collapse tab. Tall enough to be an easy target and to read as a handle,
+    /// short enough to stay clear of the transport controls at the smallest window size.
+    static let collapseTabHeight: CGFloat = 48
+
+    /// Size of the square collapse button in the corner of a standing normal player. Small
+    /// enough to sit over a picture without competing with it, big enough to hit.
+    static let collapseIconSize: CGFloat = 22
+
+    /// Gap between that button and the corner of the player.
+    static let collapseIconInset: CGFloat = 8
+
+    /// How long the cursor has to stay clear of a peeking player before it comes back.
+    ///
+    /// There is no matching delay for getting out of the way, which happens at once: the
+    /// cursor arriving is the whole signal, and a player that waited would be in the way for
+    /// exactly as long as the wait. Coming back is the direction that needs any patience at
+    /// all, so leaving the corner for a moment on the way past does not make the window
+    /// spring out.
+    ///
+    /// Short. It only has to outlast a pointer passing through, which takes a fraction of
+    /// this, and every extra tenth is time spent looking at an empty corner waiting for the
+    /// video to come back. Still several samples of the poll, so it cannot fire on one
+    /// stray reading.
+    static let peekReturnDelay: TimeInterval = 0.2
 }

@@ -3,9 +3,10 @@ import QuartzCore
 
 /// Owns the floating player window and everything about where it sits.
 ///
-/// The window has exactly four legal positions. Every path that changes size or
-/// position funnels through `applyPlacement(animated:)`, so the window can never
-/// end up somewhere that isn't a corner.
+/// The window has four legal positions, one per corner, and one more per corner for a
+/// collapsed player resting off the edge beside it. Every path that changes size or position
+/// funnels through `applyPlacement(animated:)`, so the window can never end up anywhere
+/// else, and only ever leaves its corner when it has been collapsed there on purpose.
 @MainActor
 final class PlayerWindowController: NSWindowController {
     /// Written back to `Preferences` on every change rather than at quit, from a `didSet`
@@ -20,14 +21,35 @@ final class PlayerWindowController: NSWindowController {
     }
 
     /// Called after `mode` changes, so the menu bar item can follow along.
+    ///
+    /// The mode, not the behaviour: the menu bar icon says which mode is selected, and a
+    /// key being held for a moment does not change that.
     var onModeChange: ((PlayerMode) -> Void)?
+
+    /// True while the override key is held. Never persisted: it is a hold, not a setting.
+    private var isOverrideHeld = false
+
+    /// What the player is actually doing, once the held key is taken into account. Every
+    /// decision about clicks, controls, movement and manipulation reads this.
+    private var behaviour: PlayerBehaviour {
+        PlayerBehaviour(mode: mode, isOverridden: isOverrideHeld)
+    }
+
+    /// Whether the player is tucked against the screen edge with only its tab in view.
+    ///
+    /// Where the window *is*, which is not the same as what gets remembered. You set this in
+    /// Normal Player and the cursor sets it in Peek, so it is deliberately not written back
+    /// from a `didSet`: a peeking player left hidden when you quit must not come back as a
+    /// collapsed normal one. `Preferences.isCollapsed` records the choice you made, and
+    /// `setCollapsed(_:)` is the only thing that writes it.
+    private(set) var isCollapsed: Bool
 
     private let playback: PlaybackController
     private let contentView: PlayerContentView
     private var cursorTracker: CursorTracker?
     private var isCursorOverWindow = false
     private var avoidance = AvoidanceTrigger()
-    private var dragReleaseWatch: Timer?
+    private var peek = PeekTrigger()
 
     init() {
         // Read the remembered state before anything is built: the mode decides whether
@@ -37,12 +59,17 @@ final class PlayerWindowController: NSWindowController {
         let contentSize = WindowSizing.blankContentSize(
             remembering: Preferences.shared.contentSize)
 
-        let playback = PlaybackController(controlsVisible: mode.showsTransportControls)
+        let playback = PlaybackController(
+            controlsVisible: PlayerBehaviour(mode: mode).showsTransportControls)
         let contentView = PlayerContentView(playerView: playback.playerView)
         let window = PlayerWindow(contentRect: NSRect(origin: .zero, size: contentSize))
 
         self.corner = Preferences.shared.corner
         self.mode = mode
+        // The remembered collapse is the choice you made in Normal Player, so it only applies
+        // when that is the mode coming back. Peek works this out from the cursor a moment
+        // later, and the other two are never collapsed at all.
+        self.isCollapsed = mode.canCollapse && Preferences.shared.isCollapsed
         self.playback = playback
         self.contentView = contentView
         super.init(window: window)
@@ -50,13 +77,16 @@ final class PlayerWindowController: NSWindowController {
         window.contentView = contentView
         window.delegate = self
         contentView.delegate = self
+        window.canDragWindow = { [weak self] in self?.canDragWindow ?? false }
+        window.onDragEnded = { [weak self] in self?.snapToNearestCorner() }
 
         cursorTracker = CursorTracker { [weak self] point in
-            self?.cursorSampled(at: point)
+            self?.inputSampled(at: point)
         }
 
         applyPlacement(animated: false)
-        applyMode(animated: false)
+        applyBehaviour(animated: false)
+        rearmAvoidance()
 
         NotificationCenter.default.addObserver(
             self,
@@ -119,31 +149,111 @@ final class PlayerWindowController: NSWindowController {
     func setMode(_ newMode: PlayerMode) {
         guard newMode != mode else { return }
         mode = newMode
-        applyMode(animated: true)
+        applyBehaviour(animated: true)
+        rearmAvoidance()
         onModeChange?(newMode)
     }
 
+    // MARK: - Collapsing
+
+    /// Tucks the player against the nearest screen edge, or brings it back.
+    ///
+    /// Your way in and out, from either menu or from the control on the window, and the only
+    /// path that records the choice. Peek arrives at the same placement from the cursor
+    /// instead, and deliberately does not write anything down.
+    func toggleCollapse() {
+        setCollapsed(!isCollapsed)
+    }
+
+    func setCollapsed(_ collapsed: Bool) {
+        guard behaviour.canCollapse, collapsed != isCollapsed else { return }
+        Preferences.shared.isCollapsed = collapsed
+        isCollapsed = collapsed
+        collapseDidChange(animated: true)
+    }
+
+    var canToggleCollapse: Bool { behaviour.canCollapse }
+
+    /// Settles where the window belongs after a mode change or a press of the override key.
+    ///
+    /// Three different owners of the same placement, which is why this is one place rather
+    /// than a branch at each call site: Peek reads the cursor, Normal Player reads back the
+    /// choice you made, and everything else stands in its corner.
+    private func applyCollapseState() {
+        guard behaviour.peeksFromCursor else {
+            peek.reset(hidden: false)
+            isCollapsed = behaviour.canCollapse && Preferences.shared.isCollapsed
+            return
+        }
+
+        // Seeded from where the cursor is rather than from standing out, so switching to Peek
+        // with the pointer already on the player tucks it away at once instead of showing it
+        // for a tick and then taking it back.
+        let hidden = isCursorAtPlayer(NSEvent.mouseLocation, whenHidden: false)
+        peek.reset(hidden: hidden)
+        isCollapsed = hidden
+    }
+
+    // MARK: - Peeking
+
+    /// Tucks a peeking player away as the cursor arrives, and brings it back once it has gone.
+    ///
+    /// Driven from the poll rather than the window's own tracking areas, for the same reason
+    /// as avoidance: the window moves out from under the cursor, so `mouseExited` would fire
+    /// on every hide and the two would drive each other.
+    private func updatePeek(for point: NSPoint) {
+        guard behaviour.peeksFromCursor else { return }
+
+        let hidden = peek.update(
+            isCursorAtPlayer: isCursorAtPlayer(point, whenHidden: isCollapsed))
+        guard hidden != isCollapsed else { return }
+
+        // Deliberately not `Preferences.isCollapsed`: that records the choice you made in
+        // Normal Player, and the cursor moving is not you making it.
+        isCollapsed = hidden
+        collapseDidChange(animated: true)
+    }
+
+    /// Whether the cursor counts as being at the player.
+    ///
+    /// Standing out, that is the window's own frame. Tucked away it is everywhere the player
+    /// would be if it came back, which is a larger region and has to be: the cursor that sent
+    /// it away is left sitting exactly where the window used to be, so anything smaller reads
+    /// as clear the moment the window leaves and the two states take turns forever.
+    ///
+    /// Measured from where the window stands rather than from where it is, so the answer does
+    /// not move underneath the rule asking for it.
+    private func isCursorAtPlayer(_ point: NSPoint, whenHidden hidden: Bool) -> Bool {
+        guard let window, let visibleFrame = currentVisibleFrame() else { return false }
+        let standing = corner.frame(
+            for: window.frame.size, in: visibleFrame, margin: Layout.cornerMargin)
+
+        guard hidden else { return standing.contains(point) }
+        return CollapseResolver.occupiedArea(
+            standing: standing, in: visibleFrame,
+            tab: Layout.collapseTabWidth, margin: Layout.hoverHysteresis
+        ).contains(point)
+    }
+
+    /// Applies everything that depends on the mode and the override key together.
+    ///
+    /// Called for a mode change and for a press or release of the override key, because
+    /// between them the two settle the same questions: what the window ignores, what it
+    /// shows, what it lets you do to it, and whether it is allowed to move at all.
+    ///
     /// Locking does not dim on its own — the window only fades while the cursor is
     /// actually over it. Unlocking does not steal focus either; clicking the window
     /// does that.
-    private func applyMode(animated: Bool) {
+    private func applyBehaviour(animated: Bool) {
         guard let window else { return }
+        let behaviour = self.behaviour
 
-        window.ignoresMouseEvents = mode.isClickThrough
-        playback.setControlsVisible(mode.showsTransportControls)
+        window.ignoresMouseEvents = behaviour.isClickThrough
+        playback.setControlsVisible(behaviour.showsTransportControls)
 
-        // Dragging and resizing are only offered to a normal player. In the other two
-        // modes the window is meant to be out of the way, and a mode change mid-drag
-        // would otherwise leave a drag in progress on a window that no longer accepts it.
-        let manipulable = mode.acceptsDirectManipulation
-        window.isMovable = manipulable
-        window.isMovableByWindowBackground = manipulable
-        contentView.mode = mode
-        if !manipulable {
-            endDragReleaseWatch()
-        }
+        contentView.behaviour = behaviour
 
-        if mode.needsCursorTracking {
+        if behaviour.needsCursorTracking {
             cursorTracker?.start()
         } else {
             cursorTracker?.stop()
@@ -151,16 +261,66 @@ final class PlayerWindowController: NSWindowController {
         }
 
         applyOpacity(animated: animated)
+        applyCollapseState()
+        applyCollapseControls()
+        applyPlacement(animated: animated)
+    }
 
-        // A mode change is a deliberate act, so judge it on where the cursor is now
-        // rather than inheriting a disarm from the last dodge. Sampling here as well
-        // makes the toggle land immediately: switching from Lock to Avoid leaves the
-        // tracker already running, so nothing else would look at the cursor until
-        // its next tick.
+    /// Whether a press on the player's background moves the window.
+    ///
+    /// Read by `PlayerWindow` at the moment of the press rather than pushed down on every
+    /// change, so it is never stale: the mode, the override key and the placement can all
+    /// have moved since the last time anything asked.
+    ///
+    /// Dragging and resizing are only offered to a player you have full control of: a normal
+    /// one, or any of them with the key held. A mode change or a release mid-drag would
+    /// otherwise leave a drag in progress on a window that no longer accepts it.
+    ///
+    /// A collapsed player is excluded whatever its mode. There is a tab's width of it on
+    /// screen, so a drag would be a grab at something that is not really there and a resize
+    /// would change the shape of a window nobody can see. Dropping a file still works,
+    /// because that at least does something you can then look at.
+    var canDragWindow: Bool {
+        behaviour.acceptsDirectManipulation && !isCollapsed
+    }
+
+    /// Everything that follows from the window having just been collapsed or brought back,
+    /// short of re-reading the mode. Shared by your own command and by Peek.
+    private func collapseDidChange(animated: Bool) {
+        applyCollapseControls()
+        applyPlacement(animated: animated)
+    }
+
+    /// Judges avoidance on where the cursor is now, rather than on a disarm left over from
+    /// the last dodge.
+    ///
+    /// Selecting a mode is a deliberate act and starts from a clean slate. Sampling here as
+    /// well makes the choice land immediately: switching from Lock to Avoid leaves the
+    /// tracker already running, so nothing else would look at the cursor until its next tick.
+    private func rearmAvoidance() {
         avoidance.rearm()
-        if mode.avoidsCursor {
-            updateAvoidance(for: NSEvent.mouseLocation)
-        }
+        guard behaviour.avoidsCursor else { return }
+        updateAvoidance(for: NSEvent.mouseLocation)
+    }
+
+    // MARK: - Override key
+
+    /// Notices the override key going down and coming back up.
+    ///
+    /// Read from the same poll as the cursor rather than from a global event monitor, which
+    /// would want the Input Monitoring permission for something the system will simply
+    /// answer when asked. That poll is also the only thing that notices a release, which is
+    /// why nothing stops it while the key is held.
+    private func updateOverride(isHeld: Bool) {
+        guard isHeld != isOverrideHeld else { return }
+        isOverrideHeld = isHeld
+        applyBehaviour(animated: true)
+
+        guard !isHeld else { return }
+        // Avoid is back on with the cursor almost certainly still on the window, because
+        // that is what the key was held for. Treating that as an approach would run from a
+        // placement just made by hand, so wait for the cursor to get clear before arming.
+        avoidance.holdUntilClear()
     }
 
     // MARK: - Reset
@@ -174,11 +334,18 @@ final class PlayerWindowController: NSWindowController {
     func resetSettings() {
         Preferences.shared.resetToDefaults()
 
+        // Standing out again, and unconditionally: a reset that left the player tucked against
+        // the edge would put every other setting back and leave the one thing you cannot see
+        // past. `resetToDefaults` has already cleared the remembered choice, so `applyBehaviour`
+        // reads back expanded.
+        isCollapsed = false
+
         if mode != .default {
             mode = .default
-            applyMode(animated: true)
+            rearmAvoidance()
             onModeChange?(mode)
         }
+        applyBehaviour(animated: false)
 
         // One animated move rather than a corner change followed by a resize: two
         // animations on the same window at the same time fight over its frame.
@@ -191,15 +358,25 @@ final class PlayerWindowController: NSWindowController {
 
     // MARK: - Cursor proximity
 
-    private func cursorSampled(at point: NSPoint) {
+    /// One poll, four questions. The tracker is the app's only clock, so everything that has
+    /// to watch something continuously is answered from the same tick.
+    ///
+    /// The override key comes first: it can switch off what the others were about to do, and
+    /// reading it after them would let the window move once on a tick where the user had
+    /// already taken hold of it.
+    private func inputSampled(at point: NSPoint) {
+        updateOverride(isHeld: OverrideKey.isHeld)
         updateHoverFade(for: point)
         updateAvoidance(for: point)
+        updatePeek(for: point)
     }
 
     /// Fade only applies to a locked player: that is when you cannot move the window
-    /// out of the way by hand, so seeing through it is the only option.
+    /// out of the way by hand, so seeing through it is the only option. Holding the
+    /// override key ends it, since a window you are about to take hold of should be
+    /// solid enough to aim at.
     private var targetAlpha: CGFloat {
-        mode.isClickThrough && isCursorOverWindow ? Layout.hoveredWindowAlpha : 1
+        behaviour.isClickThrough && isCursorOverWindow ? Layout.hoveredWindowAlpha : 1
     }
 
     private func updateHoverFade(for point: NSPoint) {
@@ -225,7 +402,7 @@ final class PlayerWindowController: NSWindowController {
     /// mouse-entered events: the window moves out from under the cursor, which
     /// would immediately fire `mouseExited` and start a loop.
     private func updateAvoidance(for point: NSPoint) {
-        guard mode.avoidsCursor,
+        guard behaviour.avoidsCursor,
               let window,
               let visibleFrame = currentVisibleFrame()
         else { return }
@@ -239,6 +416,34 @@ final class PlayerWindowController: NSWindowController {
             cursor: point,
             visibleFrame: visibleFrame,
             margin: Layout.cornerMargin))
+    }
+
+    /// Shows whichever of the two collapse controls belongs to the state the player is in,
+    /// and points its glyph the right way.
+    ///
+    /// Never both, and never neither by accident:
+    ///
+    /// - Standing out in Normal Player, the button in the corner, which is what you press to
+    ///   send it away.
+    /// - Collapsed, the tab, which is all of the window still on screen. Peek shows it too,
+    ///   so a player the cursor tucked away looks exactly like one you collapsed yourself.
+    /// - Avoid and Lock show neither. A control on a locked player would be click-through,
+    ///   and one on an avoiding player would run away as you reached for it: in both cases
+    ///   something that looks like it works and does not.
+    private func applyCollapseControls() {
+        contentView.collapseSide = collapseSide
+        contentView.isCollapsed = isCollapsed
+        contentView.showsCollapseTab = isCollapsed && (behaviour.canCollapse || mode.peeksFromCursor)
+        contentView.showsCollapseIcon = behaviour.canCollapse && !isCollapsed
+    }
+
+    /// The screen edge this player collapses against, measured from where it stands rather
+    /// than from where it is now, so it does not change while it is already tucked away.
+    private var collapseSide: CollapseResolver.Side {
+        guard let window, let visibleFrame = currentVisibleFrame() else { return .right }
+        let standing = corner.frame(
+            for: window.frame.size, in: visibleFrame, margin: Layout.cornerMargin)
+        return CollapseResolver.side(for: standing, in: visibleFrame)
     }
 
     private func applyOpacity(animated: Bool) {
@@ -295,33 +500,11 @@ final class PlayerWindowController: NSWindowController {
 
     // MARK: - Dragging to a corner
 
-    /// Watches for the end of a window drag, then parks the window in the corner it was
-    /// dragged towards.
+    /// Parks the window in the corner it was dragged towards.
     ///
-    /// AppKit has no "did end dragging" callback to pair with `windowDidMove`, and the
-    /// last move notification arrives while the button is still down, so the release has
-    /// to be noticed some other way. This polls the button state for the same reasons
-    /// `CursorTracker` polls the pointer: no permission prompt, and no event monitor to
-    /// be starved by the modal loop AppKit runs during the drag.
-    private func beginDragReleaseWatch() {
-        guard dragReleaseWatch == nil else { return }
-
-        let timer = Timer(timeInterval: 1.0 / 20.0, repeats: true) { [weak self] _ in
-            MainActor.assumeIsolated {
-                guard let self, NSEvent.pressedMouseButtons == 0 else { return }
-                self.endDragReleaseWatch()
-                self.snapToNearestCorner()
-            }
-        }
-        RunLoop.main.add(timer, forMode: .common)
-        dragReleaseWatch = timer
-    }
-
-    private func endDragReleaseWatch() {
-        dragReleaseWatch?.invalidate()
-        dragReleaseWatch = nil
-    }
-
+    /// Reached from an ordinary `mouseUp`, because the drag is ours: see `WindowDragger`.
+    /// While the system ran the drag, the release was swallowed by its modal loop and had to
+    /// be caught by polling the button state on a timer.
     private func snapToNearestCorner() {
         guard let window, let visibleFrame = currentVisibleFrame() else { return }
         let centre = NSPoint(x: window.frame.midX, y: window.frame.midY)
@@ -348,8 +531,16 @@ final class PlayerWindowController: NSWindowController {
         let fitted = WindowSizing.fitted(frameSize, in: available)
         applySizeConstraints(forFrameSize: fitted)
 
-        let target = corner.frame(
+        let parked = corner.frame(
             for: fitted, in: visibleFrame, margin: Layout.cornerMargin)
+
+        // A collapsed player rests off the side edge instead of in its corner. Every other
+        // path in the app lands on the corner frame, so this is the single place that has to
+        // know the window can be anywhere else.
+        let target = isCollapsed
+            ? CollapseResolver.restingFrame(
+                for: parked, in: visibleFrame, tab: Layout.collapseTabWidth)
+            : parked
 
         guard animated, Preferences.shared.animatesCornerTransition else {
             window.setFrame(target, display: true)
@@ -419,21 +610,15 @@ extension PlayerWindowController: NSWindowDelegate {
         applyPlacement(animated: false)
     }
 
-    /// Refuses a resize outright unless the player is normal.
+    /// Refuses a resize outright unless the player is one you have full control of.
     ///
     /// `isMovable` covers dragging but there is no equivalent flag for resizing, and
     /// `.resizable` cannot simply be dropped from a borderless window's style mask
     /// without rebuilding it. Returning the current size is the supported way to say no.
     func windowWillResize(_ sender: NSWindow, to frameSize: NSSize) -> NSSize {
-        mode.acceptsDirectManipulation ? frameSize : sender.frame.size
+        behaviour.acceptsDirectManipulation && !isCollapsed ? frameSize : sender.frame.size
     }
 
-    func windowDidMove(_ notification: Notification) {
-        // Fires for our own animated corner moves as well as for a user drag, so only
-        // arm the snap while a button is actually down.
-        guard mode.acceptsDirectManipulation, NSEvent.pressedMouseButtons != 0 else { return }
-        beginDragReleaseWatch()
-    }
 }
 
 // MARK: - PlayerContentViewDelegate
@@ -441,5 +626,9 @@ extension PlayerWindowController: NSWindowDelegate {
 extension PlayerWindowController: PlayerContentViewDelegate {
     func playerContentView(_ view: PlayerContentView, didReceiveFileAt url: URL) {
         open(url)
+    }
+
+    func playerContentViewDidClickCollapseControl(_ view: PlayerContentView) {
+        toggleCollapse()
     }
 }
