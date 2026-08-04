@@ -76,16 +76,25 @@ enum MainMenuBuilder {
         menu.addItem(.separator())
 
         // One choice with three options: exactly one is ticked, and the tick is set per
-        // state in AppDelegate.validateMenuItem(_:). Normal comes first because it is the
-        // state the other two are departures from.
-        for mode in [PlayerMode.plain, .avoid, .lock] {
+        // state in AppDelegate.validateMenuItem(_:). Built from PlayerMode.allCases, which
+        // starts at Normal because that is the state the other two are departures from, and
+        // which both menus read, so they cannot drift apart.
+        for mode in PlayerMode.allCases {
             menu.addItem(
                 withTitle: HotKey.selecting(mode).menuTitle(mode.menuTitle),
                 action: Self.action(selecting: mode),
                 keyEquivalent: "")
         }
 
+        menu.addItem(overrideNote())
         menu.addItem(.separator())
+
+        // Grouped with Cycle Corner rather than with the modes: both settle where the window
+        // sits, and neither is a mode.
+        menu.addItem(
+            withTitle: collapseTitle,
+            action: #selector(AppDelegate.toggleCollapse(_:)),
+            keyEquivalent: "")
 
         menu.addItem(
             withTitle: HotKey.cycleCorner.menuTitle("Cycle Corner"),
@@ -114,9 +123,39 @@ enum MainMenuBuilder {
     static func action(selecting mode: PlayerMode) -> Selector {
         switch mode {
         case .plain: #selector(AppDelegate.selectNormalMode(_:))
-        case .avoid: #selector(AppDelegate.selectAvoidMode(_:))
         case .lock: #selector(AppDelegate.selectLockMode(_:))
+        case .peek: #selector(AppDelegate.selectPeekMode(_:))
+        case .avoid: #selector(AppDelegate.selectAvoidMode(_:))
         }
+    }
+
+    /// Title of the collapse item, in both menus.
+    ///
+    /// One title for both directions, ticked while the player is collapsed, the same way
+    /// Animate Corner Moves reads. A title that flipped to "Expand" would say what the
+    /// click does but never what the player is currently doing, which is the more useful of
+    /// the two when the window is a tab at the edge of the screen.
+    static let collapseTitle = "Collapse to Edge"
+
+    /// The line under the mode group explaining the hold.
+    ///
+    /// A note rather than a control: there is nothing to click, because the way to use it is
+    /// to hold the key. It sits directly under the modes because what it says is true of
+    /// every one of them.
+    ///
+    /// Disabled explicitly as well as having no action. Automatic enabling would settle it
+    /// the same way, but only once the menu is on its way open, which leaves the item
+    /// claiming to be enabled every moment before that.
+    ///
+    /// Shared by both menus so the wording cannot drift.
+    @MainActor
+    static func overrideNote() -> NSMenuItem {
+        let item = NSMenuItem(
+            title: "Hold \(OverrideKey.displayName) for full control",
+            action: nil,
+            keyEquivalent: "")
+        item.isEnabled = false
+        return item
     }
 
     @MainActor

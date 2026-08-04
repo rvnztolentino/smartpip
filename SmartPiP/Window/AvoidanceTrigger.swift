@@ -56,4 +56,16 @@ struct AvoidanceTrigger {
         isArmed = true
         settlesAt = nil
     }
+
+    /// Call when the window has just been under the user's hand, which is to say when the
+    /// override key has been released.
+    ///
+    /// The cursor is then almost certainly on the window, because that is what the key was
+    /// held for. Reading that as an approach would send the window running from a placement
+    /// just made by hand, so this waits for the cursor to get clear first, exactly as it
+    /// does after a dodge.
+    mutating func holdUntilClear() {
+        isArmed = false
+        settlesAt = nil
+    }
 }

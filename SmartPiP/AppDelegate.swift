@@ -29,8 +29,22 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         hotKeyCenter.unregisterAll()
     }
 
+    /// No. The player is a panel, and AppKit does not count panels here.
+    ///
+    /// This used to answer yes, back when the player was an ordinary window and closing it
+    /// was the only way to reach zero windows. Now that it is an `NSPanel`, AppKit leaves it
+    /// out of the count, so the app looks like it has no windows at all times and this is
+    /// asked every time any window anywhere in the app closes. A menu is a window: opening
+    /// the menu bar item and picking anything from it closed the menu, tripped the check, and
+    /// quit the app.
+    ///
+    /// Nothing is lost by answering no. The player has no close button and cannot be closed:
+    /// its style mask has no `.closable`, so Close in the File menu is greyed out, ⌘W beeps,
+    /// and Escape, which panels otherwise treat as a close, does nothing either. There is no
+    /// way to be left running with no player, which is the state this was guarding against.
+    /// Quit is still Quit, in both menus.
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool {
-        true
+        false
     }
 
     // MARK: - Menu actions
@@ -53,6 +67,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     @objc func selectLockMode(_ sender: Any?) {
         playerWindowController?.setMode(.lock)
+    }
+
+    @objc func selectPeekMode(_ sender: Any?) {
+        playerWindowController?.setMode(.peek)
+    }
+
+    @objc func toggleCollapse(_ sender: Any?) {
+        playerWindowController?.toggleCollapse()
     }
 
     @objc func togglePlayPause(_ sender: Any?) {
@@ -99,9 +121,9 @@ extension AppDelegate: NSMenuItemValidation {
     func validateMenuItem(_ menuItem: NSMenuItem) -> Bool {
         let mode = playerWindowController?.mode ?? .default
 
-        // Exactly one of the three mode items is ticked at all times. The item for the
-        // current mode stays enabled: selecting it is a no-op rather than an error, and
-        // greying it out would make the group look broken.
+        // Exactly one of the mode items is ticked at all times. The item for the current
+        // mode stays enabled: selecting it is a no-op rather than an error, and greying it
+        // out would make the group look broken.
         switch menuItem.action {
         case #selector(toggleAnimatedCornerTransition(_:)):
             menuItem.state = Preferences.shared.animatesCornerTransition ? .on : .off
@@ -111,8 +133,17 @@ extension AppDelegate: NSMenuItemValidation {
             menuItem.state = mode == .avoid ? .on : .off
         case #selector(selectLockMode(_:)):
             menuItem.state = mode == .lock ? .on : .off
+        case #selector(selectPeekMode(_:)):
+            menuItem.state = mode == .peek ? .on : .off
         case #selector(togglePlayPause(_:)):
             return playerWindowController?.canTogglePlayPause ?? false
+        case #selector(toggleCollapse(_:)):
+            // Greyed out rather than hidden outside Normal Player. Unlike the mode group,
+            // where greying the ticked item would look broken, this one genuinely is not
+            // available, and saying so is more use than removing the line people are
+            // looking for.
+            menuItem.state = playerWindowController?.isCollapsed == true ? .on : .off
+            return playerWindowController?.canToggleCollapse ?? false
         default:
             break
         }

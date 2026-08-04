@@ -43,13 +43,17 @@ final class StatusItemController {
         menu.addItem(.separator())
 
         // The same three-option group as the Player menu, in the same order, from the same
-        // titles and selectors. Checkmarks are set in AppDelegate.validateMenuItem(_:).
-        for mode in [PlayerMode.plain, .avoid, .lock] {
+        // titles and selectors, with the same note under it. Checkmarks are set in
+        // AppDelegate.validateMenuItem(_:).
+        for mode in PlayerMode.allCases {
             add(to: menu, title: HotKey.selecting(mode).menuTitle(mode.menuTitle),
                 action: MainMenuBuilder.action(selecting: mode), target: target)
         }
+        menu.addItem(MainMenuBuilder.overrideNote())
         menu.addItem(.separator())
 
+        add(to: menu, title: MainMenuBuilder.collapseTitle,
+            action: #selector(AppDelegate.toggleCollapse(_:)), target: target)
         add(to: menu, title: HotKey.cycleCorner.menuTitle("Cycle Corner"),
             action: #selector(AppDelegate.cycleCorner(_:)), target: target)
         add(to: menu, title: "Animate Corner Moves",

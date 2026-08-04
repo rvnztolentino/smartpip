@@ -4,6 +4,7 @@ import AVKit
 @MainActor
 protocol PlayerContentViewDelegate: AnyObject {
     func playerContentView(_ view: PlayerContentView, didReceiveFileAt url: URL)
+    func playerContentViewDidClickCollapseControl(_ view: PlayerContentView)
 }
 
 /// Content view of the player window: hosts the `AVPlayerView` and acts as the
@@ -28,6 +29,40 @@ final class PlayerContentView: NSView {
 
     private let playerView: AVPlayerView
     private let placeholderLabel = NSTextField(labelWithString: "")
+    private let collapseTab = CollapseTabView(frame: .zero)
+    private let collapseIcon = CollapseIconView(frame: .zero)
+
+    private var collapseControls: [CollapseControl] { [collapseTab, collapseIcon] }
+
+    /// Which screen edge the player collapses against, and whether it is there now. The
+    /// controller works both out; the view only has to draw and place the controls
+    /// accordingly.
+    var collapseSide: CollapseResolver.Side = .right {
+        didSet {
+            guard collapseSide != oldValue else { return }
+            collapseControls.forEach { $0.side = collapseSide }
+            needsLayout = true
+        }
+    }
+
+    var isCollapsed = false {
+        didSet { collapseControls.forEach { $0.isCollapsed = isCollapsed } }
+    }
+
+    /// The tab left behind on a collapsed player, and the button in the corner of a standing
+    /// one. Never both: they are one control in two places, and each belongs to the state the
+    /// other cannot be reached in.
+    ///
+    /// The controller decides. In Peek the tab is shown without either being clickable, since
+    /// there the cursor is the control and a button that did nothing would be worse than no
+    /// button at all.
+    var showsCollapseTab = false {
+        didSet { collapseTab.isHidden = !showsCollapseTab }
+    }
+
+    var showsCollapseIcon = true {
+        didSet { collapseIcon.isHidden = !showsCollapseIcon }
+    }
 
     private var isDropTargeted = false {
         didSet {
@@ -36,13 +71,14 @@ final class PlayerContentView: NSView {
         }
     }
 
-    /// The current mode, so the view can explain why a drop is being refused.
+    /// What the player is currently doing, so the view can explain why a drop is being
+    /// refused, and stop explaining the moment the override key makes it possible.
     ///
     /// Held here rather than asked for on demand because the message has to be right the
     /// moment a drag arrives, and a drag arrives without warning.
-    var mode: PlayerMode = .default {
+    var behaviour = PlayerBehaviour(mode: .default) {
         didSet {
-            guard mode != oldValue else { return }
+            guard behaviour != oldValue else { return }
             isShowingModeAdvice = false
             updateMessage()
         }
@@ -51,7 +87,12 @@ final class PlayerContentView: NSView {
     /// Set while a refused drag is hovering, so the explanation can appear over a video
     /// that is already playing — the placeholder alone would only ever be seen on an
     /// empty player, which is not when people discover the restriction.
-    private var isShowingModeAdvice = false
+    private var isShowingModeAdvice = false {
+        didSet {
+            guard isShowingModeAdvice != oldValue else { return }
+            updateMessage()
+        }
+    }
 
     init(playerView: AVPlayerView) {
         self.playerView = playerView
@@ -105,6 +146,20 @@ final class PlayerContentView: NSView {
                 lessThanOrEqualTo: heightAnchor, constant: -Metrics.placeholderInset * 2),
         ])
 
+        // Added last so they sit in front of the picture and take their own clicks.
+        // Positioned in `layout()` rather than by constraints, because which edge they belong
+        // on changes with the corner, and a pair of constraints being swapped for each other
+        // is a worse way to say the same thing.
+        for control in collapseControls {
+            control.translatesAutoresizingMaskIntoConstraints = true
+            control.onClick = { [weak self] in
+                guard let self else { return }
+                delegate?.playerContentViewDidClickCollapseControl(self)
+            }
+            addSubview(control)
+        }
+        collapseTab.isHidden = !showsCollapseTab
+
         registerForDraggedTypes([.fileURL])
         updateMessage()
     }
@@ -125,11 +180,12 @@ final class PlayerContentView: NSView {
     /// Chooses what the label says, or hides it.
     ///
     /// Three cases, in order of precedence: a drag being refused right now, an empty
-    /// player, and a player with something in it. An empty player in Avoid or Lock shows
-    /// the advice rather than "drop a file here", because there dropping a file is exactly
-    /// what will not work.
+    /// player, and a player with something in it. An empty player in a mode that refuses
+    /// drops shows the advice rather than "drop a file here", because there dropping a file
+    /// is exactly what will not work. Holding the override key removes the advice, because
+    /// then it does.
     private func updateMessage() {
-        let advice = mode.directManipulationAdvice
+        let advice = behaviour.directManipulationAdvice
 
         if isShowingModeAdvice, let advice {
             placeholderLabel.stringValue = advice
@@ -149,15 +205,14 @@ final class PlayerContentView: NSView {
             : ""
     }
 
-    /// Drags the window when the press lands on the background rather than on the video,
-    /// which is what happens on an empty player.
-    override func mouseDown(with event: NSEvent) {
-        guard let window, window.isMovable else {
-            super.mouseDown(with: event)
-            return
-        }
-        window.performDrag(with: event)
-    }
+    /// Says the black background is something you may drag the window by, which is what you
+    /// get hold of on an empty player. `PlayerWindow.sendEvent` reads this and does the
+    /// moving; the system is never asked, because its drag offers to tile the window against
+    /// a screen edge.
+    override var mouseDownCanMoveWindow: Bool { true }
+
+    /// So a press on an inactive player is not spent activating the app.
+    override func acceptsFirstMouse(for event: NSEvent?) -> Bool { true }
 
     override func layout() {
         // Wrapping has to be measured against the window's width, not the label's
@@ -165,6 +220,30 @@ final class PlayerContentView: NSView {
         // wide line and then gets clipped instead of wrapping.
         placeholderLabel.preferredMaxLayoutWidth = max(
             bounds.width - Metrics.placeholderInset * 2, 1)
+
+        // The tab lives on the inner edge: the side facing the middle of the screen, which
+        // is the opposite one to the edge the player collapses against. That is what leaves
+        // it flush against the screen edge, and still the only part in view, once collapsed.
+        let tabWidth = min(Layout.collapseTabWidth, bounds.width)
+        let tabHeight = min(Layout.collapseTabHeight, bounds.height)
+        collapseTab.frame = NSRect(
+            x: collapseSide == .right ? bounds.minX : bounds.maxX - tabWidth,
+            y: bounds.midY - tabHeight / 2,
+            width: tabWidth,
+            height: tabHeight
+        )
+
+        // The button sits in the top left, inset from both edges, wherever the player is
+        // parked and whichever way it collapses. Only the glyph inside it turns around.
+        let icon = min(Layout.collapseIconSize, min(bounds.width, bounds.height))
+        let inset = min(Layout.collapseIconInset, max((min(bounds.width, bounds.height) - icon) / 2, 0))
+        collapseIcon.frame = NSRect(
+            x: bounds.minX + inset,
+            y: bounds.maxY - inset - icon,
+            width: icon,
+            height: icon
+        )
+
         super.layout()
     }
 
@@ -183,17 +262,28 @@ final class PlayerContentView: NSView {
     // MARK: - Dragging destination
 
     override func draggingEntered(_ sender: any NSDraggingInfo) -> NSDragOperation {
+        draggingUpdated(sender)
+    }
+
+    /// Answers again on every update rather than standing by what `draggingEntered` said.
+    ///
+    /// The refusal message tells you to hold the override key, and you can only do that
+    /// after the drag has already arrived. Without this the answer would be fixed at the
+    /// moment the file crossed the edge of the window, and taking the advice would do
+    /// nothing at all.
+    override func draggingUpdated(_ sender: any NSDraggingInfo) -> NSDragOperation {
         guard droppableURL(from: sender) != nil else { return [] }
 
         // Refused rather than allowed-if-you-are-quick: in Avoid the window is running
         // from the pointer that is holding the file, so a drop is a race. Saying no and
         // saying why is more use than a drop that lands one time in three.
-        guard mode.acceptsDirectManipulation else {
+        guard behaviour.acceptsDirectManipulation else {
+            isDropTargeted = false
             isShowingModeAdvice = true
-            updateMessage()
             return []
         }
 
+        isShowingModeAdvice = false
         isDropTargeted = true
         return .copy
     }
@@ -207,12 +297,12 @@ final class PlayerContentView: NSView {
     }
 
     override func prepareForDragOperation(_ sender: any NSDraggingInfo) -> Bool {
-        mode.acceptsDirectManipulation && droppableURL(from: sender) != nil
+        behaviour.acceptsDirectManipulation && droppableURL(from: sender) != nil
     }
 
     override func performDragOperation(_ sender: any NSDraggingInfo) -> Bool {
         endDrag()
-        guard mode.acceptsDirectManipulation, let url = droppableURL(from: sender) else {
+        guard behaviour.acceptsDirectManipulation, let url = droppableURL(from: sender) else {
             return false
         }
         delegate?.playerContentView(self, didReceiveFileAt: url)
@@ -221,9 +311,7 @@ final class PlayerContentView: NSView {
 
     private func endDrag() {
         isDropTargeted = false
-        guard isShowingModeAdvice else { return }
         isShowingModeAdvice = false
-        updateMessage()
     }
 
     /// First dragged item that is a local file of a type we can play.

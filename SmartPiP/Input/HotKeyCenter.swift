@@ -35,7 +35,7 @@ extension HotKey {
         displayName: "⌃⌥⌘A"
     )
 
-    /// The way out of both other modes, and the primary control in lock mode: with the
+    /// The way out of every other mode, and the primary control in lock mode: with the
     /// window click-through, this is the only route back that does not need the pointer.
     ///
     /// It exists because selecting a mode no longer toggles it off. Without a shortcut of
@@ -47,13 +47,24 @@ extension HotKey {
         displayName: "⌃⌥⌘N"
     )
 
+    static let selectPeek = HotKey(
+        identifier: 5,
+        keyCode: UInt32(kVK_ANSI_P),
+        modifiers: UInt32(controlKey | optionKey | cmdKey),
+        displayName: "⌃⌥⌘P"
+    )
+
     /// The shortcut for `mode`, so the menus and the registration table cannot disagree
     /// about which key selects which mode.
+    ///
+    /// Exhaustive on purpose: a mode added without a shortcut fails to compile here rather
+    /// than shipping as the one mode you cannot reach from the keyboard.
     static func selecting(_ mode: PlayerMode) -> HotKey {
         switch mode {
         case .plain: .selectNormal
-        case .avoid: .selectAvoid
         case .lock: .selectLock
+        case .peek: .selectPeek
+        case .avoid: .selectAvoid
         }
     }
 
