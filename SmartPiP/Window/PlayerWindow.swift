@@ -4,8 +4,9 @@ import AppKit
 ///
 /// Position is owned by `PlayerWindowController`, which only ever parks it in a screen
 /// corner. A normal player can be dragged, but only to choose which corner: it snaps to
-/// the quadrant you let go in. Whether dragging is allowed at all depends on the mode and on
-/// where the window is, so the controller decides that, and the views do the moving.
+/// the quadrant you let go in. It can also be resized from any of its edges. Whether either
+/// is allowed at all depends on the mode and on where the window is, so the controller
+/// decides that, and this window does the moving and the sizing.
 ///
 /// An `NSPanel` rather than a plain window, and a non-activating one, so that clicking the
 /// player never brings SmartPiP to the front.
@@ -31,13 +32,34 @@ final class PlayerWindow: NSPanel {
     /// moment of the press, so it is always the current mode, key and placement.
     var canDragWindow: (() -> Bool)?
 
+    /// What a resize starting right now would have to stay inside, and nil when the player is
+    /// not one you may resize. Asked at the moment of the press, for the same reason, and
+    /// answering the permission and the limits together so a press cannot be allowed by one
+    /// and left unbounded by the other.
+    var resizeLimits: (() -> ResizeLimits?)?
+
     /// Called on the release that ends a drag which moved the window, so it can be parked.
     var onDragEnded: (() -> Void)?
 
-    private let dragger = WindowDragger()
-    private var isDragging = false
+    /// Called on the release that ends a resize which changed the window, so the new size can
+    /// be re-parked and remembered.
+    var onResizeEnded: (() -> Void)?
 
-    /// Watches for a press on the player and moves the window itself.
+    /// What a press took hold of, decided once when it lands and then left alone.
+    ///
+    /// The mode, the override key and the placement can all change while a button is down,
+    /// and a gesture that re-read them would be a move halfway through being a resize. One
+    /// press is one gesture, from the press to the release.
+    private enum Gesture {
+        case moving
+        case resizing
+    }
+
+    private let dragger = WindowDragger()
+    private let resizer = WindowResizer()
+    private var gesture: Gesture?
+
+    /// Watches for a press on the player and moves or resizes the window itself.
     ///
     /// Intercepted here rather than in the views because the views do not reliably see it.
     /// `AVPlayerView` lays a control overlay across its whole bounds once the transport
@@ -49,46 +71,79 @@ final class PlayerWindow: NSPanel {
     ///
     /// Which presses count is still AppKit's own rule, `mouseDownCanMoveWindow` on whichever
     /// view is hit. The picture and the black background say yes; the transport controls and
-    /// the collapse controls say no, and go on taking their own clicks. Only the moving is
-    /// ours, and it has to be: the system's drag offers to tile the window against a screen
-    /// edge, and this one has four legal positions.
+    /// the collapse controls say no, and go on taking their own clicks. Only the moving and
+    /// the sizing are ours, and both have to be: the system's drag offers to tile the window
+    /// against a screen edge, and this one has four legal positions.
     ///
     /// Nothing is swallowed. The events go on to their views afterwards exactly as before, so
     /// a press still brings the app forward and a click is still a click.
     override func sendEvent(_ event: NSEvent) {
         switch event.type {
-        case .leftMouseDown where shouldBeginDrag(for: event):
-            isDragging = true
-            dragger.begin(in: self)
-        case .leftMouseDragged where isDragging:
-            dragger.drag(in: self)
-        case .leftMouseUp where isDragging:
-            isDragging = false
-            if dragger.end() {
-                onDragEnded?()
+        case .leftMouseDown:
+            gesture = beginGesture(for: event)
+        case .leftMouseDragged:
+            switch gesture {
+            case .moving: dragger.drag(in: self)
+            case .resizing: resizer.drag(in: self)
+            case nil: break
             }
+        case .leftMouseUp:
+            endGesture()
         default:
             break
         }
         super.sendEvent(event)
     }
 
-    private func shouldBeginDrag(for event: NSEvent) -> Bool {
-        guard canDragWindow?() == true,
-              let hit = contentView?.hitTest(event.locationInWindow)
-        else { return false }
-        return hit.mouseDownCanMoveWindow
+    /// Reads a press as a resize, a move, or neither.
+    ///
+    /// The edges are checked first, because they are a band inside the same background that
+    /// moves the window and the more particular of the two answers has to win. A press that
+    /// is not on an edge, or on a player you may move but not resize, falls through to the
+    /// drag exactly as it did before there was a resize at all.
+    private func beginGesture(for event: NSEvent) -> Gesture? {
+        guard let hit = contentView?.hitTest(event.locationInWindow),
+              hit.mouseDownCanMoveWindow
+        else { return nil }
+
+        if let limits = resizeLimits?() {
+            let edges = ResizeResolver.edges(
+                at: event.locationInWindow,
+                in: frame.size,
+                border: Layout.resizeBorderWidth)
+            if resizer.begin(in: self, edges: edges, limits: limits) { return .resizing }
+        }
+
+        guard canDragWindow?() == true, dragger.begin(in: self) else { return nil }
+        return .moving
+    }
+
+    private func endGesture() {
+        switch gesture {
+        case .moving:
+            if dragger.end() { onDragEnded?() }
+        case .resizing:
+            if resizer.end() { onResizeEnded?() }
+        case nil:
+            break
+        }
+        gesture = nil
     }
 
     init(contentRect: NSRect) {
-        // `.borderless` is an empty option set; combining it with `.resizable`
-        // yields a chrome-free window that can still be resized from its edges.
+        // `.borderless` is an empty option set, so the mask says only what this window is: a
+        // panel with no chrome that never activates the app. `.nonactivatingPanel` is what
+        // keeps a click on the player from bringing SmartPiP forward, and with it the ⌥ click
+        // gesture that hides whatever you were in.
         //
-        // `.nonactivatingPanel` is what keeps a click on the player from bringing SmartPiP
-        // forward, and with it the ⌥ click gesture that hides whatever you were in.
+        // Deliberately not `.resizable`. That is the switch that hands the edges to AppKit's
+        // own resize loop, and on a window with no chrome the loop offers only the few points
+        // it reserves at each corner: the sides were not grabbable at all. `sendEvent(_:)`
+        // resizes by hand instead, from any edge, so leaving the flag in would be a second
+        // mechanism racing the first for the same press.
         super.init(
             contentRect: contentRect,
-            styleMask: [.borderless, .resizable, .nonactivatingPanel],
+            styleMask: [.borderless, .nonactivatingPanel],
             backing: .buffered,
             defer: false
         )
@@ -115,10 +170,10 @@ final class PlayerWindow: NSPanel {
         backgroundColor = .black
         preventsApplicationTerminationWhenModal = false
 
-        // The system never moves this window, in any mode. Its drag loop offers to tile a
-        // window that reaches a screen edge, drawing an outline and then resizing the player
-        // to half the display, and this one has exactly four legal positions. Dragging still
-        // works: `sendEvent(_:)` above does it by hand.
+        // The system never moves or resizes this window, in any mode. Its drag loop offers to
+        // tile a window that reaches a screen edge, drawing an outline and then resizing the
+        // player to half the display, and this one has exactly four legal positions. Both
+        // gestures still work: `sendEvent(_:)` above does them by hand.
         //
         // Both flags, because they are different routes to the same loop: `isMovable` covers
         // a drag the window server starts on its own, including the ⌃⌘ drag-from-anywhere

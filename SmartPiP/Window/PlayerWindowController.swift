@@ -75,10 +75,11 @@ final class PlayerWindowController: NSWindowController {
         super.init(window: window)
 
         window.contentView = contentView
-        window.delegate = self
         contentView.delegate = self
         window.canDragWindow = { [weak self] in self?.canDragWindow ?? false }
         window.onDragEnded = { [weak self] in self?.snapToNearestCorner() }
+        window.resizeLimits = { [weak self] in self?.resizeLimits }
+        window.onResizeEnded = { [weak self] in self?.applyPlacement(animated: false) }
 
         cursorTracker = CursorTracker { [weak self] point in
             self?.inputSampled(at: point)
@@ -282,6 +283,33 @@ final class PlayerWindowController: NSWindowController {
     /// because that at least does something you can then look at.
     var canDragWindow: Bool {
         behaviour.acceptsDirectManipulation && !isCollapsed
+    }
+
+    /// What a resize starting now would have to stay inside, and nil when this is not a
+    /// player you may resize.
+    ///
+    /// Read by `PlayerWindow` at the moment of the press, for the same reason as
+    /// `canDragWindow`, and gated on it: moving and resizing are the same permission, which
+    /// is why refusing one has never meant allowing the other.
+    ///
+    /// The floor comes from `WindowSizing` rather than from `window.contentMinSize`, so the
+    /// rule has one owner even though the window is told it as well. The ceiling is the same
+    /// available area `apply(frameSize:animated:)` fits an oversized window into: stopping
+    /// there means a resize ends where it looks like it ended, rather than growing past the
+    /// screen and shrinking back on release.
+    private var resizeLimits: ResizeLimits? {
+        guard canDragWindow, let window, let visibleFrame = currentVisibleFrame() else {
+            return nil
+        }
+
+        let minimumContent = WindowSizing.minimumContentSize(for: currentContentSize)
+        return ResizeLimits(
+            minimum: window.frameRect(
+                forContentRect: NSRect(origin: .zero, size: minimumContent)).size,
+            maximum: NSSize(
+                width: visibleFrame.width - Layout.cornerMargin * 2,
+                height: visibleFrame.height - Layout.cornerMargin * 2),
+            anchor: corner)
     }
 
     /// Everything that follows from the window having just been collapsed or brought back,
@@ -529,7 +557,7 @@ final class PlayerWindowController: NSWindowController {
             height: visibleFrame.height - Layout.cornerMargin * 2
         )
         let fitted = WindowSizing.fitted(frameSize, in: available)
-        applySizeConstraints(forFrameSize: fitted)
+        rememberContentSize(forFrameSize: fitted)
 
         let parked = corner.frame(
             for: fitted, in: visibleFrame, margin: Layout.cornerMargin)
@@ -556,23 +584,23 @@ final class PlayerWindowController: NSWindowController {
         }
     }
 
-    /// Pins the window's shape to whatever it is being sized to, and records that size.
+    /// Writes down the size the window is about to take.
     ///
-    /// `contentAspectRatio` is what makes a drag on any edge keep the video's proportions,
-    /// so it has to be reset whenever a new file changes the shape. `contentMinSize` moves
-    /// with it: a floor of a different shape to the ratio would leave AppKit reconciling
-    /// two contradictory constraints during a resize.
+    /// Here because every path that changes the window's size arrives here, including the
+    /// release that ends a hand-rolled resize, so a new way to change it cannot forget to
+    /// record it.
     ///
-    /// This is also where the remembered size is written, because every path that changes
-    /// the window's size arrives here.
-    private func applySizeConstraints(forFrameSize frameSize: NSSize) {
+    /// The window is told nothing about its own shape or floor. `contentAspectRatio` and
+    /// `contentMinSize` only ever constrained AppKit's resize loop, which this window does
+    /// not use: the shape is held by `ResizeResolver`, which takes it from the frame, and the
+    /// floor comes from `WindowSizing` through `resizeLimits`. Setting them as well would be
+    /// a second answer that nothing reads.
+    private func rememberContentSize(forFrameSize frameSize: NSSize) {
         guard let window else { return }
         let contentSize = window.contentRect(
             forFrameRect: NSRect(origin: .zero, size: frameSize)).size
         guard contentSize.width > 0, contentSize.height > 0 else { return }
 
-        window.contentAspectRatio = contentSize
-        window.contentMinSize = WindowSizing.minimumContentSize(for: contentSize)
         Preferences.shared.contentSize = contentSize
     }
 
@@ -599,26 +627,6 @@ final class PlayerWindowController: NSWindowController {
         // may no longer be where we think it is.
         applyPlacement(animated: false)
     }
-}
-
-// MARK: - NSWindowDelegate
-
-extension PlayerWindowController: NSWindowDelegate {
-    func windowDidEndLiveResize(_ notification: Notification) {
-        // Resizing from a leading edge drags the origin with it; re-anchor so we
-        // stay flush in the current corner.
-        applyPlacement(animated: false)
-    }
-
-    /// Refuses a resize outright unless the player is one you have full control of.
-    ///
-    /// `isMovable` covers dragging but there is no equivalent flag for resizing, and
-    /// `.resizable` cannot simply be dropped from a borderless window's style mask
-    /// without rebuilding it. Returning the current size is the supported way to say no.
-    func windowWillResize(_ sender: NSWindow, to frameSize: NSSize) -> NSSize {
-        behaviour.acceptsDirectManipulation && !isCollapsed ? frameSize : sender.frame.size
-    }
-
 }
 
 // MARK: - PlayerContentViewDelegate

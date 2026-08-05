@@ -214,6 +214,71 @@ final class PlayerContentView: NSView {
     /// So a press on an inactive player is not spent activating the app.
     override func acceptsFirstMouse(for event: NSEvent?) -> Bool { true }
 
+    // MARK: - Resize pointer
+
+    /// The edges the pointer is over, and nil when it is over none of them or the player is
+    /// not one you may resize.
+    ///
+    /// Kept so the cursor is only ever touched when the answer changes. Setting it on every
+    /// sample would be sixty pointless calls a second across the middle of a video, and
+    /// putting the arrow back is only ours to do when we were the ones who took it away.
+    private var pointerEdges: ResizeEdge?
+
+    private var pointerArea: NSTrackingArea?
+
+    /// Whether a press near an edge would resize the player right now.
+    ///
+    /// Asked of the window rather than worked out from `behaviour` and `isCollapsed` here,
+    /// even though both are to hand. It is the same question the press itself asks, and the
+    /// pointer promising a resize that the press then refuses is worse than no pointer at
+    /// all, so there is one place to ask it.
+    private var canResize: Bool {
+        (window as? PlayerWindow)?.resizeLimits?() != nil
+    }
+
+    /// Watches the pointer so the resize band can announce itself.
+    ///
+    /// `.activeAlways` because SmartPiP is almost never the frontmost app: a cursor that only
+    /// changed while the app was active would never change at all. This is also why the
+    /// window's own `mouseMoved` is no use here, and why cursor rectangles are not either.
+    override func updateTrackingAreas() {
+        super.updateTrackingAreas()
+        if let pointerArea { removeTrackingArea(pointerArea) }
+
+        let area = NSTrackingArea(
+            rect: bounds,
+            options: [.mouseMoved, .mouseEnteredAndExited, .activeAlways, .inVisibleRect],
+            owner: self)
+        addTrackingArea(area)
+        pointerArea = area
+    }
+
+    override func mouseEntered(with event: NSEvent) {
+        updatePointer(at: convert(event.locationInWindow, from: nil))
+    }
+
+    override func mouseMoved(with event: NSEvent) {
+        updatePointer(at: convert(event.locationInWindow, from: nil))
+    }
+
+    /// The pointer has left the player, so whatever it shows now is somebody else's business.
+    override func mouseExited(with event: NSEvent) {
+        updatePointer(at: nil)
+    }
+
+    private func updatePointer(at point: NSPoint?) {
+        let edges = point.flatMap { point -> ResizeEdge? in
+            guard canResize else { return nil }
+            let edges = ResizeResolver.edges(
+                at: point, in: bounds.size, border: Layout.resizeBorderWidth)
+            return edges.isEmpty ? nil : edges
+        }
+
+        guard edges != pointerEdges else { return }
+        pointerEdges = edges
+        (edges?.cursor ?? .arrow).set()
+    }
+
     override func layout() {
         // Wrapping has to be measured against the window's width, not the label's
         // unconstrained intrinsic width, or a long message lays itself out as one very

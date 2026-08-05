@@ -31,6 +31,8 @@
 		B1000000000000000000001C /* OverrideKey.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1000000000000000000001C /* OverrideKey.swift */; };
 		B1000000000000000000001D /* PeekTrigger.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1000000000000000000001D /* PeekTrigger.swift */; };
 		B1000000000000000000001E /* WindowDragger.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1000000000000000000001E /* WindowDragger.swift */; };
+		B1000000000000000000001F /* ResizeResolver.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1000000000000000000001F /* ResizeResolver.swift */; };
+		B10000000000000000000020 /* WindowResizer.swift in Sources */ = {isa = PBXBuildFile; fileRef = F10000000000000000000020 /* WindowResizer.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -61,6 +63,8 @@
 		F1000000000000000000001C /* OverrideKey.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OverrideKey.swift; sourceTree = "<group>"; };
 		F1000000000000000000001D /* PeekTrigger.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PeekTrigger.swift; sourceTree = "<group>"; };
 		F1000000000000000000001E /* WindowDragger.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WindowDragger.swift; sourceTree = "<group>"; };
+		F1000000000000000000001F /* ResizeResolver.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ResizeResolver.swift; sourceTree = "<group>"; };
+		F10000000000000000000020 /* WindowResizer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WindowResizer.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -111,6 +115,7 @@
 				F10000000000000000000019,
 				F1000000000000000000001A,
 				F1000000000000000000001D,
+				F1000000000000000000001F,
 			);
 			path = Window;
 			sourceTree = "<group>";
@@ -123,6 +128,7 @@
 				F1000000000000000000000C,
 				F1000000000000000000001B,
 				F1000000000000000000001E,
+				F10000000000000000000020,
 			);
 			path = Player;
 			sourceTree = "<group>";
@@ -263,6 +269,8 @@
 				B1000000000000000000001C /* OverrideKey.swift in Sources */,
 				B1000000000000000000001D /* PeekTrigger.swift in Sources */,
 				B1000000000000000000001E /* WindowDragger.swift in Sources */,
+				B1000000000000000000001F /* ResizeResolver.swift in Sources */,
+				B10000000000000000000020 /* WindowResizer.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

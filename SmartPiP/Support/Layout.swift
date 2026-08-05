@@ -19,6 +19,15 @@ enum Layout {
     /// other proportions.
     static let minimumContentSize = NSSize(width: 192, height: 108)
 
+    /// How far in from each edge a press takes hold of the window's size rather than its
+    /// position.
+    ///
+    /// Inside the frame, because a borderless window is sent nothing that lands outside its
+    /// own bounds: a band drawn beyond the edge would be one no press could reach. Wide
+    /// enough to hit without aiming on a window that shows no border at all, narrow enough
+    /// to leave most of the picture as something to drag the player by.
+    static let resizeBorderWidth: CGFloat = 8
+
     /// Duration of an animated corner move.
     static let cornerAnimationDuration: TimeInterval = 0.25
 
