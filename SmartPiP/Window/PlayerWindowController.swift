@@ -430,13 +430,16 @@ final class PlayerWindowController: NSWindowController {
     /// mouse-entered events: the window moves out from under the cursor, which
     /// would immediately fire `mouseExited` and start a loop.
     private func updateAvoidance(for point: NSPoint) {
-        guard behaviour.avoidsCursor,
-              let window,
-              let visibleFrame = currentVisibleFrame()
-        else { return }
+        guard behaviour.avoidsCursor, let window else { return }
 
         let distance = AvoidanceResolver.distance(from: point, to: window.frame)
         guard avoidance.shouldFlee(distance: distance) else { return }
+
+        // Asked for here rather than above the distance test, which needs only the window's
+        // own frame. `NSScreen.visibleFrame` is a round trip to the window server rather than
+        // a stored rectangle, so reading it up front spent that on every sample, and all but
+        // one sample in a dodge is a sample where nothing happens.
+        guard let visibleFrame = currentVisibleFrame() else { return }
 
         move(to: AvoidanceResolver.destination(
             from: corner,

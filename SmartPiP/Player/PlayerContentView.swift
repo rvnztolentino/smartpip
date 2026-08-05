@@ -232,6 +232,11 @@ final class PlayerContentView: NSView {
     /// even though both are to hand. It is the same question the press itself asks, and the
     /// pointer promising a resize that the press then refuses is worse than no pointer at
     /// all, so there is one place to ask it.
+    ///
+    /// Not cheap, which is why `updatePointer(at:)` only reaches it for a pointer already in
+    /// the band. Answering it builds the whole `ResizeLimits`, and that measures the room on
+    /// screen with `NSScreen.visibleFrame`, which is a round trip to the window server rather
+    /// than a stored rectangle.
     private var canResize: Bool {
         (window as? PlayerWindow)?.resizeLimits?() != nil
     }
@@ -266,12 +271,20 @@ final class PlayerContentView: NSView {
         updatePointer(at: nil)
     }
 
+    /// Where the pointer is, before whether a resize is allowed.
+    ///
+    /// Both have to be true and the order does not change the answer, so it is settled by
+    /// cost. The geometry is a handful of comparisons against `bounds`; the permission asks
+    /// the window server how much room the screen has, and is some thousands of times dearer.
+    /// This runs on every mouse move over the player, and the pointer is over the picture for
+    /// almost all of them, so asking the cheap question first is the difference between a
+    /// hundred of those a second and none.
     private func updatePointer(at point: NSPoint?) {
         let edges = point.flatMap { point -> ResizeEdge? in
-            guard canResize else { return nil }
             let edges = ResizeResolver.edges(
                 at: point, in: bounds.size, border: Layout.resizeBorderWidth)
-            return edges.isEmpty ? nil : edges
+            guard !edges.isEmpty, canResize else { return nil }
+            return edges
         }
 
         guard edges != pointerEdges else { return }
