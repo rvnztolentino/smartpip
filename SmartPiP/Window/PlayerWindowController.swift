@@ -435,18 +435,11 @@ final class PlayerWindowController: NSWindowController {
         let distance = AvoidanceResolver.distance(from: point, to: window.frame)
         guard avoidance.shouldFlee(distance: distance) else { return }
 
-        // Asked for here rather than above the distance test, which needs only the window's
-        // own frame. `NSScreen.visibleFrame` is a round trip to the window server rather than
-        // a stored rectangle, so reading it up front spent that on every sample, and all but
-        // one sample in a dodge is a sample where nothing happens.
-        guard let visibleFrame = currentVisibleFrame() else { return }
-
-        move(to: AvoidanceResolver.destination(
-            from: corner,
-            size: window.frame.size,
-            cursor: point,
-            visibleFrame: visibleFrame,
-            margin: Layout.cornerMargin))
+        // The whole sample is the window's own frame and the corner it is parked in. The
+        // dodge no longer measures the room on screen to pick between corners, so nothing
+        // here asks for `NSScreen.visibleFrame`, which is a round trip to the window server
+        // rather than a stored rectangle.
+        move(to: AvoidanceResolver.destination(from: corner))
     }
 
     /// Shows whichever of the two collapse controls belongs to the state the player is in,

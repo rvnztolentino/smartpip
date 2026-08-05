@@ -64,20 +64,30 @@ final class PlaybackController {
     /// the buttons but leaves the container exactly as it was, so a style change made while
     /// the controls are showing strands the blurred grey panel behind them, at full opacity,
     /// over the picture. Nothing afterwards takes it away: the pointer leaving does not, since
-    /// AVKit is no longer managing it, and neither does a re-layout, a detour through another
-    /// style, detaching the player, or removing and re-adding the whole view.
+    /// AVKit is no longer managing it, and neither does a detour through another style,
+    /// detaching the player, or removing and re-adding the whole view.
     ///
     /// That is exactly what holding the override key does. The key goes down, the controls
     /// become available, you hover, and the moment you let go the style changes underneath a
     /// visible control bar.
     ///
+    /// Faded rather than hidden, and that distinction is the whole of the fix. `isHidden`
+    /// held only until the next time AVKit laid itself out, which puts its own container
+    /// back on screen: the same view instance, with `isHidden` quietly false again. That is
+    /// not a rare event on this path, it is the next thing that happens.
+    /// `PlayerWindowController.applyBehaviour(animated:)` re-parks the window immediately
+    /// after switching the controls off, re-parking sets the frame, and setting the frame
+    /// lays the player view out, so the panel came back during the same release of the key
+    /// that was meant to take it away. `alphaValue` survives that layout where `isHidden`
+    /// does not, which is why the panel is faded out rather than hidden.
+    ///
     /// Found by walking the view tree, so it depends on AVKit's own class name. If that name
     /// ever changes this quietly does nothing and the panel comes back, which is the same
     /// behaviour as not having the workaround at all: it cannot break anything by failing.
-    /// Nothing is destroyed either, only hidden, and it is shown again the moment the
-    /// controls are wanted, so AVKit gets its container back in the state it left it.
+    /// Nothing is destroyed either, only faded, and it is put back the moment the controls
+    /// are wanted, so AVKit gets its container back in the state it left it.
     private func setControlChromeHidden(_ hidden: Bool) {
-        Self.controlChrome(in: playerView)?.isHidden = hidden
+        Self.controlChrome(in: playerView)?.alphaValue = hidden ? 0 : 1
     }
 
     private static func controlChrome(in view: NSView) -> NSView? {

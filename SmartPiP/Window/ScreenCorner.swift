@@ -17,12 +17,31 @@ enum ScreenCorner: String, CaseIterable {
 
     /// The next corner clockwise.
     ///
-    /// The one rotation in the app: the Cycle Corner shortcut and the avoidance
-    /// dodge both step through it, so the window only ever travels one way.
+    /// The rotation behind the Cycle Corner shortcut, which is the one place in the app
+    /// that walks all four corners in order. Avoid used to step through this as well and
+    /// no longer does: see `verticalCounterpart`.
     var next: ScreenCorner {
         let all = ScreenCorner.allCases
         let index = all.firstIndex(of: self) ?? 0
         return all[(index + 1) % all.count]
+    }
+
+    /// The corner directly above or below this one, on the same side of the screen.
+    ///
+    /// Where an avoiding player goes. The dodge is vertical only, so the window swaps top
+    /// for bottom and stays on the side you left it on: a player on the right stays on the
+    /// right, and one on the left stays on the left.
+    ///
+    /// Moving on one axis rather than around all four corners means the window ends up
+    /// somewhere you can predict from where it started, and it never crosses the middle of
+    /// the screen, which is where the thing you are actually looking at usually is.
+    var verticalCounterpart: ScreenCorner {
+        switch self {
+        case .topLeft: .bottomLeft
+        case .bottomLeft: .topLeft
+        case .topRight: .bottomRight
+        case .bottomRight: .topRight
+        }
     }
 
     /// The corner for a window dragged so that its centre sits at `point`.

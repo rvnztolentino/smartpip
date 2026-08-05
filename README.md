@@ -60,8 +60,8 @@ the same small tab a collapsed normal player leaves. Move the cursor away and it
 out on its own after a moment.
 
 The other half of Avoid: both get out of the way of the pointer, and the difference is only
-where they go. Avoid takes the whole window to another corner and stays there; Peek slides
-it aside and comes back once you have gone.
+where they go. Avoid takes the whole window to the corner above or below and stays there;
+Peek slides it aside and comes back once you have gone.
 
 Going is immediate, because a player that waited would be in the way for exactly as long as
 it waited. Coming back takes a moment, so crossing its corner on the way somewhere else does
@@ -72,9 +72,11 @@ Hold Option and it comes out and stays out until you let go.
 
 ### Avoid Cursor (⌃⌥⌘A)
 
-As the cursor gets close, the player moves to the next corner clockwise. Always one
-direction, so you can see where it is going before it goes, and it stays where it lands. A
-corner the cursor is already in gets skipped.
+As the cursor gets close, the player moves straight up or straight down, to the corner at
+the other end of the side it is already on. A player in a right hand corner swaps between
+the two right hand corners, and one on the left swaps between the two on the left. It never
+changes sides, so it stays out of the middle of the screen and you always know where it is
+about to be. It stays where it lands.
 
 Hold Option and it stops dodging until you let go. On release it waits for the cursor to get
 clear before it will run again, so letting go of the key does not undo the placing you held

@@ -21,11 +21,16 @@ struct AvoidanceTrigger {
     /// Two things stop one dodge turning into a chase:
     ///
     /// - The trigger and release distances differ. After running, the window has to
-    ///   see the cursor well clear before it will run again — otherwise a pointer
-    ///   parked on the boundary would pump it between corners. `AvoidanceResolver`
-    ///   only ever lands it beyond the release distance, so in practice the next
-    ///   sample after a dodge re-arms it; the gap earns its keep on a screen too
-    ///   small to get clear, where the window stays put instead of hopping forever.
+    ///   see the cursor well clear before it will run again, otherwise a pointer
+    ///   parked between the two corners would pump it up and down forever.
+    ///
+    ///   This gap carries the whole weight of that now. `AvoidanceResolver` used to walk
+    ///   clockwise past any corner the cursor was near, so it could pick one beyond the
+    ///   release distance and the next sample would re-arm. The dodge is vertical now and
+    ///   has exactly one destination, so it cannot choose a clear one: a cursor halfway up
+    ///   the screen is within reach of both corners on that side, and nothing but this
+    ///   disarm stops the window flipping between them for as long as the pointer sits
+    ///   there.
     /// - Nothing counts while the window is still sliding. It sweeps across the
     ///   screen and can pass the pointer on the way, which is not an approach.
     mutating func shouldFlee(distance: CGFloat, now: Date = Date()) -> Bool {

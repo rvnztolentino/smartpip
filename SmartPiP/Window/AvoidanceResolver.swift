@@ -2,9 +2,10 @@ import AppKit
 
 /// Decides where the player runs to when the cursor closes in on it.
 ///
-/// Pure geometry: rectangles and points in, a corner out. No window, no state, no
-/// timers — so the whole rule can be exercised without anything on screen, which is
-/// the only practical way to test a behaviour that is otherwise a pointer chase.
+/// Pure geometry: how far the cursor is from the window, and which corner the window
+/// answers that with. No window, no state, no timers — so the whole rule can be exercised
+/// without anything on screen, which is the only practical way to test a behaviour that is
+/// otherwise a pointer chase.
 enum AvoidanceResolver {
 
     /// Shortest distance from `point` to `rect`, and zero once the point is inside.
@@ -19,36 +20,18 @@ enum AvoidanceResolver {
 
     /// The corner the window should flee to.
     ///
-    /// Always the next corner clockwise — the same rotation the Cycle Corner
-    /// shortcut uses, so the player only ever travels one way and you can see
-    /// where it is going before it goes there.
+    /// Straight up or straight down, on the side of the screen the player is already on.
+    /// A player in a right-hand corner swaps between the two right-hand corners and a
+    /// player on the left swaps between the two left-hand ones; it never changes sides.
     ///
-    /// The single exception is a corner the cursor is already near: it keeps going
-    /// clockwise until it finds one that is clear. Direction never changes, only
-    /// how far around it steps.
-    ///
-    /// "Clear" means the release distance rather than the trigger distance. Landing
-    /// inside that gap would leave the window somewhere it is too close to re-arm
-    /// but too far to run, so it would sit there ignoring the cursor.
-    static func destination(
-        from corner: ScreenCorner,
-        size: NSSize,
-        cursor: NSPoint,
-        visibleFrame: NSRect,
-        margin: CGFloat
-    ) -> ScreenCorner {
-        var candidate = corner.next
-
-        // At most the other three corners; if the cursor somehow covers all of
-        // them the plain clockwise step is still the answer.
-        for _ in 1..<ScreenCorner.allCases.count {
-            let frame = candidate.frame(for: size, in: visibleFrame, margin: margin)
-            if distance(from: cursor, to: frame) >= Layout.avoidReleaseDistance {
-                return candidate
-            }
-            candidate = candidate.next
-        }
-
-        return corner.next
+    /// One destination rather than a choice, which is the whole difference from the
+    /// clockwise rotation this replaced. That version walked on past any corner the cursor
+    /// was already near, so it could always land somewhere clear. This one has nowhere else
+    /// to go, so a cursor parked halfway up the screen can be left near the window after it
+    /// has run. That is deliberate: `AvoidanceTrigger` holds the window still until the
+    /// cursor is well clear, so it settles where it lands instead of flipping forever, and
+    /// a predictable destination is worth more than a clear one.
+    static func destination(from corner: ScreenCorner) -> ScreenCorner {
+        corner.verticalCounterpart
     }
 }
