@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<!--
+	  SmartPiP runs inside the App Sandbox.
+
+	  The only untrusted thing the app ever touches is a video file, which it hands
+	  straight to AVFoundation. Container parsing happens in process, and media parsers
+	  are a long running source of memory corruption bugs, so the sandbox is what keeps a
+	  bad file from reaching the rest of the user's account.
+
+	  Two entitlements, and deliberately no others:
+	-->
+
+	<key>com.apple.security.app-sandbox</key>
+	<true/>
+
+	<!--
+	  Read access to files the user chose themselves, which is every file this app opens:
+	  one picked in the open panel, or one dropped on the player. Both routes hand the
+	  sandbox an extension for that file alone. Read only, because nothing is ever
+	  written back to a video.
+
+	  Deliberately not here: no network client or server, since nothing is fetched or
+	  served; no downloads, movies or home folder access, since the app never reaches for
+	  a location of its own choosing; and no app scoped bookmarks, since the open file is
+	  never persisted across launches.
+	-->
+	<key>com.apple.security.files.user-selected.read-only</key>
+	<true/>
+</dict>
+</plist>

@@ -47,7 +47,20 @@ echo "==> Assembling bundle"
 cp "$ROOT/SmartPiP/Info.plist" "$APP/Contents/Info.plist"
 printf 'APPL????' > "$APP/Contents/PkgInfo"
 
-echo "==> Signing (ad hoc)"
-codesign --force --sign - "$APP"
+echo "==> Signing (ad hoc, hardened runtime, sandboxed)"
+# Both protections are applied here rather than only by Xcode, so the script and
+# SmartPiP.xcodeproj produce the same app. The project sets ENABLE_HARDENED_RUNTIME and
+# ENABLE_APP_SANDBOX to match, and this is the build path that is actually used.
+#
+# The app's one untrusted input is a video file, handed to AVFoundation and parsed in
+# process, so it is worth confining. The sandbox comes from the entitlements and the
+# hardened runtime from `--options runtime`; both are real with an ad hoc signature, and
+# neither needs an account or a certificate.
+#
+# What ad hoc signing still costs is distribution: Gatekeeper will object to a build sent
+# to anyone else. Notarising is the fix for that and needs a paid Developer ID, which this
+# build path deliberately does not use.
+codesign --force --sign - --options runtime \
+  --entitlements "$ROOT/SmartPiP/SmartPiP.entitlements" "$APP"
 
 echo "==> Built $APP"
