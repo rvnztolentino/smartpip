@@ -1,5 +1,8 @@
 # SmartPiP
 
+[![Release](https://img.shields.io/github/v/release/rvnztolentino/smartpip?label=release)](https://github.com/rvnztolentino/smartpip/releases/latest)
+[![License: MIT](https://img.shields.io/github/license/rvnztolentino/smartpip?label=license)](LICENSE)
+
 A small always-on-top video player for macOS that gets out of your way. It plays local MOV
 and MP4 files in a borderless window that sits in a screen corner, and it can dodge your
 cursor, tuck itself against the screen edge, or go click-through so the app underneath keeps
@@ -120,9 +123,6 @@ line like `SmartPiP: could not register ⌃⌥⌘L`. Change the matching entry i
 
 ## Settings
 
-No environment variables, no keys, no services and no privacy permissions. The app asks for
-nothing before it runs.
-
 The player remembers its corner, mode, size and whether you collapsed it, written the moment
 they change rather than at quit, so a Force Quit loses nothing. A peeking player tucking
 itself away is not remembered, because that is the cursor rather than you.
@@ -148,7 +148,6 @@ tucks itself away again only once your cursor arrives.
 - A collapsed player cannot be dragged or resized in any mode. Bring it out first.
 - Resizing keeps the video's proportions. How big is remembered, what shape is not: an empty
   player is always 16:9.
-- The app ships no icon of its own, so macOS gives it the default one.
 - Builds are sandboxed and run under the hardened runtime, but they are ad hoc signed rather
   than notarised. That is fine locally, where nothing is quarantined, but Gatekeeper would
   object if you sent the app to someone else.
