@@ -166,3 +166,7 @@ Swift 5 and AppKit, with no third-party packages.
 - The window is moved by hand rather than by `performDrag(with:)`, whose drag loop offers to
   tile a window that reaches a screen edge
 - `UserDefaults` for the remembered corner, mode, size and collapse
+
+## License
+
+MIT. See [`LICENSE`](LICENSE). Use it, change it, ship it; just keep the copyright notice.
